@@ -17,7 +17,7 @@ export const Language = () => {
 
   const handleContinue = () => {
     if (patientData.selectedLanguage) {
-      navigate('/consent');
+      navigate('/patient-details');
     }
   };
 

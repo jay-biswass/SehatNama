@@ -20,7 +20,7 @@ export const Consent = () => {
   const handleContinue = () => {
     if (checked) {
       updatePatientData({ consentAccepted: true });
-      navigate('/interview');
+      navigate('/interview/concern');
     }
   };
 

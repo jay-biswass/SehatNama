@@ -27,7 +27,7 @@ export const CheckIn = () => {
       setError('Please enter a valid 10-digit mobile number.');
       return;
     }
-    updatePatientData({ mobileNumber, patientName: 'Rahul Kumar' }); // default name
+    updatePatientData({ mobileNumber }); // Removed hardcoded default name
     navigate('/language');
   };
 

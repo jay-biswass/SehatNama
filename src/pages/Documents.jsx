@@ -13,7 +13,7 @@ import BackButton from '../components/navigation/BackButton';
 
 export const Documents = () => {
   const navigate = useNavigate();
-  const { patientData, addDocument, updateDocumentStatus, removeDocument } = usePatient();
+  const { patientData, uploadAndAddDocument, updateDocumentStatus, removeDocument } = usePatient();
   
   const [selectedType, setSelectedType] = useState('prescription');
   const [processingDocId, setProcessingDocId] = useState(null);
@@ -25,18 +25,8 @@ export const Documents = () => {
     { id: 'other', label: 'Other Document', description: 'Upload any other relevant health record', icon: '📄' }
   ];
 
-  const handleFileUpload = (file) => {
-    const docId = `doc-${Date.now()}`;
-    const newDoc = {
-      id: docId,
-      name: file.name,
-      size: file.size,
-      type: selectedType,
-      status: 'reading',
-      extractedData: null
-    };
-
-    addDocument(newDoc);
+  const handleFileUpload = async (file) => {
+    const docId = await uploadAndAddDocument(file, selectedType);
     setProcessingDocId(docId);
   };
 
