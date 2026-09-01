@@ -1,27 +1,46 @@
 import React, { createContext, useContext, useState } from 'react';
+import { checkRedFlags } from '../utils/redFlagRules';
+import { healthQuestionFlows } from '../data/healthQuestionFlows';
+import patientService from '../services/patientService';
+import caseService from '../services/caseService';
+import documentService from '../services/documentService';
+import alertService from '../services/alertService';
 
 const PatientContext = createContext();
 
 const initialPatientState = {
-  patientName: 'Rahul Kumar',
+  dbPatientId: null,
+  currentCaseId: null,
+  patientName: '',
+  dateOfBirth: '',
+  age: null,
+  gender: '',
   mobileNumber: '',
+  email: '',
+  location: '',
+  bloodGroup: '',
+  hasAllergies: '',
+  allergies: '',
   selectedLanguage: null,
   consentAccepted: false,
-  chiefComplaint: '',
-  answers: {},
-  severity: '',
-  duration: '',
-  associatedSymptoms: [],
+  
+  // Intelligent interview state
+  selectedConcern: null,
+  patientDescription: '',
+  answers: {}, // Dynamic answers: { [concernId]: { [questionId]: value } }
+  priorityLevel: 'normal',
+  emergencyAlertTriggered: false,
+
   documents: [],
   extractedMedicalData: {
     medications: [],
     labResults: []
-  },
-  emergencyAlertTriggered: false
+  }
 };
 
 export const PatientProvider = ({ children }) => {
   const [patientData, setPatientData] = useState(initialPatientState);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updatePatientData = (fields) => {
     setPatientData(prev => ({
@@ -30,47 +49,171 @@ export const PatientProvider = ({ children }) => {
     }));
   };
 
-  const addAnswer = (questionId, answer) => {
-    setPatientData(prev => {
-      const newAnswers = { ...prev.answers, [questionId]: answer };
-      let updatedFields = { answers: newAnswers };
+  /**
+   * Persist patient demographic profile to Supabase
+   */
+  const savePatientProfile = async (overrides = {}) => {
+    const updated = { ...patientData, ...overrides };
+    const { data, error } = await patientService.upsertPatient({
+      id: patientData.dbPatientId,
+      ...updated
+    });
 
-      // Map questions directly to convenience fields
-      if (questionId === 1) {
-        // "Where exactly are you feeling the pain?"
-        updatedFields.painLocation = answer;
-      } else if (questionId === 2) {
-        // "How severe is the pain?"
-        updatedFields.severity = answer;
-      } else if (questionId === 3) {
-        // "When did the pain start?"
-        updatedFields.duration = answer;
-      } else if (questionId === 4) {
-        // "Are you experiencing difficulty breathing?"
-        const isDifficultyBreathing = answer.includes("Yes, I have difficulty breathing");
-        let newSymptoms = [...prev.associatedSymptoms];
-        if (isDifficultyBreathing) {
-          if (!newSymptoms.includes("Difficulty breathing")) {
-            newSymptoms.push("Difficulty breathing");
-          }
-          updatedFields.emergencyAlertTriggered = true;
-        } else {
-          newSymptoms = newSymptoms.filter(s => s !== "Difficulty breathing");
-        }
-        
-        // Add "Sweating" as a mock secondary associated symptom if they have pain
-        if (prev.chiefComplaint && !newSymptoms.includes("Sweating")) {
-          newSymptoms.push("Sweating");
-        }
-        
-        updatedFields.associatedSymptoms = newSymptoms;
+    if (data && data.id) {
+      setPatientData(prev => ({ ...prev, dbPatientId: data.id }));
+      return data.id;
+    }
+    return null;
+  };
+
+  /**
+   * Select a health concern and initialize case in Supabase
+   */
+  const selectHealthConcern = async (concernId, description = '') => {
+    setPatientData(prev => ({
+      ...prev,
+      selectedConcern: concernId,
+      patientDescription: description
+    }));
+
+    // Async background sync with Supabase
+    try {
+      let patientId = patientData.dbPatientId;
+      if (!patientId && (patientData.patientName || patientData.mobileNumber)) {
+        patientId = await savePatientProfile();
       }
 
+      const { data: newCase } = await caseService.createCase({
+        patientId,
+        chiefComplaint: concernId,
+        patientDescription: description,
+        priorityLevel: patientData.priorityLevel
+      });
+
+      if (newCase && newCase.id) {
+        setPatientData(prev => ({ ...prev, currentCaseId: newCase.id }));
+      }
+    } catch (err) {
+      console.warn('Background Supabase case initialization fallback:', err);
+    }
+  };
+
+  const updatePatientDescription = (description) => {
+    setPatientData(prev => ({
+      ...prev,
+      patientDescription: description
+    }));
+  };
+
+  const saveAnswer = (concernId, questionId, answer) => {
+    setPatientData(prev => {
+      const concernAnswers = prev.answers[concernId] || {};
       return {
         ...prev,
-        ...updatedFields
+        answers: {
+          ...prev.answers,
+          [concernId]: {
+            ...concernAnswers,
+            [questionId]: answer
+          }
+        }
       };
     });
+  };
+
+  const getAnswer = (concernId, questionId) => {
+    if (!patientData.answers[concernId]) return null;
+    return patientData.answers[concernId][questionId];
+  };
+
+  const clearAnswers = (concernId) => {
+    setPatientData(prev => {
+      const newAnswers = { ...prev.answers };
+      delete newAnswers[concernId];
+      return {
+        ...prev,
+        answers: newAnswers
+      };
+    });
+  };
+
+  const evaluateRedFlags = () => {
+    const concern = patientData.selectedConcern;
+    const answers = patientData.answers[concern];
+    const { priority, alertTriggered } = checkRedFlags(concern, answers);
+    
+    setPatientData(prev => ({
+      ...prev,
+      priorityLevel: priority,
+      emergencyAlertTriggered: alertTriggered
+    }));
+
+    // Update case priority in Supabase if case exists
+    if (patientData.currentCaseId) {
+      caseService.updateCase(patientData.currentCaseId, { priority_level: priority });
+    }
+
+    return alertTriggered;
+  };
+
+  const triggerEmergencyAlert = (triggered) => {
+    setPatientData(prev => ({
+      ...prev,
+      emergencyAlertTriggered: triggered
+    }));
+  };
+
+  /**
+   * Upload file to Supabase Storage & add metadata to Context + Database
+   */
+  const uploadAndAddDocument = async (file, docType) => {
+    const docId = `doc-${Date.now()}`;
+    const newDoc = {
+      id: docId,
+      name: file.name,
+      size: file.size,
+      type: docType,
+      status: 'reading',
+      extractedData: null,
+      fileRef: file
+    };
+
+    // Add locally for instant UI response
+    setPatientData(prev => ({
+      ...prev,
+      documents: [...prev.documents, newDoc]
+    }));
+
+    // Upload to Supabase Storage
+    try {
+      const { filePath, publicUrl } = await documentService.uploadFile(
+        file,
+        patientData.dbPatientId || 'guest',
+        patientData.currentCaseId || 'draft'
+      );
+
+      if (patientData.currentCaseId) {
+        await documentService.saveDocumentMetadata({
+          caseId: patientData.currentCaseId,
+          fileName: file.name,
+          filePath,
+          fileType: file.type,
+          fileSize: file.size,
+          documentType: docType
+        });
+      }
+
+      setPatientData(prev => ({
+        ...prev,
+        documents: prev.documents.map(d => 
+          d.id === docId ? { ...d, filePath, publicUrl } : d
+        )
+      }));
+    } catch (err) {
+      console.warn('Document storage upload fallback:', err);
+    }
+
+    return docId;
   };
 
   const addDocument = (doc) => {
@@ -89,23 +232,18 @@ export const PatientProvider = ({ children }) => {
         return doc;
       });
 
-      // Aggregate extracted data into context state if status is completed
       let cumulativeMeds = [...prev.extractedMedicalData.medications];
       let cumulativeLab = [...prev.extractedMedicalData.labResults];
 
       if (status === 'completed' && extractedData) {
         if (extractedData.medications) {
           extractedData.medications.forEach(med => {
-            if (!cumulativeMeds.includes(med)) {
-              cumulativeMeds.push(med);
-            }
+            if (!cumulativeMeds.includes(med)) cumulativeMeds.push(med);
           });
         }
         if (extractedData.labResults) {
           extractedData.labResults.forEach(lab => {
-            if (!cumulativeLab.some(l => l.name === lab.name)) {
-              cumulativeLab.push(lab);
-            }
+            if (!cumulativeLab.some(l => l.name === lab.name)) cumulativeLab.push(lab);
           });
         }
       }
@@ -113,10 +251,7 @@ export const PatientProvider = ({ children }) => {
       return {
         ...prev,
         documents: updatedDocs,
-        extractedMedicalData: {
-          medications: cumulativeMeds,
-          labResults: cumulativeLab
-        }
+        extractedMedicalData: { medications: cumulativeMeds, labResults: cumulativeLab }
       };
     });
   };
@@ -125,7 +260,6 @@ export const PatientProvider = ({ children }) => {
     setPatientData(prev => {
       const remainingDocs = prev.documents.filter(doc => doc.id !== docId);
       
-      // Recompute cumulative extracted medical data based on remaining completed documents
       let cumulativeMeds = [];
       let cumulativeLab = [];
       
@@ -133,16 +267,12 @@ export const PatientProvider = ({ children }) => {
         if (doc.status === 'completed' && doc.extractedData) {
           if (doc.extractedData.medications) {
             doc.extractedData.medications.forEach(med => {
-              if (!cumulativeMeds.includes(med)) {
-                cumulativeMeds.push(med);
-              }
+              if (!cumulativeMeds.includes(med)) cumulativeMeds.push(med);
             });
           }
           if (doc.extractedData.labResults) {
             doc.extractedData.labResults.forEach(lab => {
-              if (!cumulativeLab.some(l => l.name === lab.name)) {
-                cumulativeLab.push(lab);
-              }
+              if (!cumulativeLab.some(l => l.name === lab.name)) cumulativeLab.push(lab);
             });
           }
         }
@@ -151,37 +281,100 @@ export const PatientProvider = ({ children }) => {
       return {
         ...prev,
         documents: remainingDocs,
-        extractedMedicalData: {
-          medications: cumulativeMeds,
-          labResults: cumulativeLab
-        }
+        extractedMedicalData: { medications: cumulativeMeds, labResults: cumulativeLab }
       };
     });
   };
 
-  const triggerEmergencyAlert = (triggered) => {
-    setPatientData(prev => ({
-      ...prev,
-      emergencyAlertTriggered: triggered
-    }));
+  /**
+   * Final submission: Syncs patient profile, case answers, alerts & status to Supabase
+   */
+  const submitFinalCase = async () => {
+    setIsSubmitting(true);
+    try {
+      // 1. Ensure patient record is saved
+      const patientId = await savePatientProfile();
+
+      // 2. Ensure active case exists
+      let caseId = patientData.currentCaseId;
+      if (!caseId) {
+        const { data: newCase } = await caseService.createCase({
+          patientId,
+          chiefComplaint: patientData.selectedConcern || 'General Concern',
+          patientDescription: patientData.patientDescription,
+          priorityLevel: patientData.priorityLevel
+        });
+        caseId = newCase?.id;
+      }
+
+      if (caseId) {
+        // 3. Batch save case answers
+        const concern = patientData.selectedConcern;
+        const flow = concern ? healthQuestionFlows[concern] : null;
+        const currentAnswers = concern ? patientData.answers[concern] || {} : {};
+
+        if (flow && flow.questions) {
+          const answersPayload = flow.questions
+            .filter(q => currentAnswers[q.id] !== undefined)
+            .map(q => ({
+              question_id: q.id,
+              question_text: q.question,
+              question_type: q.type,
+              answer: currentAnswers[q.id]
+            }));
+
+          await caseService.saveAnswers(caseId, answersPayload);
+        }
+
+        // 4. Create Alert if priority is high or red flag was triggered
+        if (patientData.emergencyAlertTriggered || patientData.priorityLevel === 'high') {
+          await alertService.createAlert({
+            caseId,
+            alertType: 'potential_priority_symptoms',
+            priority: 'high',
+            message: `Priority symptoms reported for ${concern || 'chief complaint'}. Doctor review recommended.`
+          });
+        }
+
+        // 5. Update Case Status to waiting_for_doctor
+        await caseService.updateCase(caseId, {
+          status: 'waiting_for_doctor',
+          priority_level: patientData.priorityLevel,
+          patient_id: patientId || undefined
+        });
+      }
+    } catch (err) {
+      console.error('Final case submission error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetPatientData = () => {
     setPatientData({
       ...initialPatientState,
-      selectedLanguage: patientData.selectedLanguage // Keep language for better UX if they restart
+      selectedLanguage: patientData.selectedLanguage
     });
   };
 
   return (
     <PatientContext.Provider value={{
       patientData,
+      isSubmitting,
       updatePatientData,
-      addAnswer,
+      savePatientProfile,
+      selectHealthConcern,
+      updatePatientDescription,
+      saveAnswer,
+      getAnswer,
+      clearAnswers,
+      evaluateRedFlags,
+      triggerEmergencyAlert,
+      uploadAndAddDocument,
       addDocument,
       updateDocumentStatus,
       removeDocument,
-      triggerEmergencyAlert,
+      submitFinalCase,
       resetPatientData
     }}>
       {children}
@@ -196,3 +389,5 @@ export const usePatient = () => {
   }
   return context;
 };
+
+export default PatientContext;

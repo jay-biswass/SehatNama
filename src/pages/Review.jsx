@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePatient } from '../context/PatientContext';
+import { healthQuestionFlows } from '../data/healthQuestionFlows';
 import PageContainer from '../components/layout/PageContainer';
 import PatientLayout from '../components/layout/PatientLayout';
 import ReviewCard from '../components/review/ReviewCard';
@@ -10,23 +11,23 @@ import Button from '../components/ui/Button';
 import Loader from '../components/ui/Loader';
 import Modal from '../components/ui/Modal';
 import BackButton from '../components/navigation/BackButton';
-import { Activity, Clock, BarChart2, MessageSquare, Pill, FileText, Send, Eye } from 'lucide-react';
+import { Activity, Clock, BarChart2, MessageSquare, Pill, FileText, Send, Eye, CheckCircle2, UserCheck } from 'lucide-react';
 
 export const Review = () => {
   const navigate = useNavigate();
-  const { patientData } = usePatient();
+  const { patientData, submitFinalCase, isSubmitting: isContextSubmitting } = usePatient();
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localSubmitting, setLocalSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleSubmit = () => {
-    setIsSubmitting(true);
-    // Simulate submission loading for 2 seconds, then navigate to success
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate('/success');
-    }, 2000);
+  const handleSubmit = async () => {
+    setLocalSubmitting(true);
+    await submitFinalCase();
+    setLocalSubmitting(false);
+    navigate('/success');
   };
+
+  const isSubmitting = localSubmitting || isContextSubmitting;
 
   const editSection = (path) => {
     navigate(path);
@@ -47,17 +48,12 @@ export const Review = () => {
     );
   }
 
-  // Fallback defaults if patient skipped fields (helps for standalone prototype exploration)
-  const complaint = patientData.chiefComplaint || 'Chest pain';
-  const severity = patientData.severity || 'Severe (7-8 / 10)';
-  const duration = patientData.duration || 'Since this morning';
-  const symptoms = patientData.associatedSymptoms.length > 0 
-    ? patientData.associatedSymptoms 
-    : ['Difficulty breathing', 'Sweating'];
+  const concernFlow = patientData.selectedConcern ? healthQuestionFlows[patientData.selectedConcern] : null;
+  const answers = patientData.selectedConcern ? patientData.answers[patientData.selectedConcern] : {};
   
   const medications = patientData.extractedMedicalData.medications.length > 0
     ? patientData.extractedMedicalData.medications
-    : ['Metformin 500 mg', 'Amlodipine 5 mg'];
+    : [];
 
   const labResults = patientData.extractedMedicalData.labResults;
   const docsCount = patientData.documents.length;
@@ -65,13 +61,11 @@ export const Review = () => {
   return (
     <PatientLayout>
       <PageContainer className="justify-between py-6">
-        {/* Navigation */}
         <div className="flex items-center justify-between mb-4 shrink-0">
           <BackButton to="/documents" />
         </div>
 
         <div className="flex-1 flex flex-col max-w-lg mx-auto w-full gap-5 select-none">
-          {/* Header */}
           <div className="text-center sm:text-left">
             <h2 className="text-2xl font-bold text-slate-800 mb-1">
               Review your health info
@@ -81,55 +75,83 @@ export const Review = () => {
             </p>
           </div>
 
-          {/* Compiled Summary Cards */}
           <ReviewCard>
-            {/* Chief Complaint */}
+            {/* Patient Information */}
+            <ReviewSection
+              title="Patient Information"
+              icon={<UserCheck size={16} />} 
+              onEdit={() => editSection('/patient-details')}
+            >
+              <div className="flex flex-col gap-2">
+                <span className="font-bold text-slate-900 text-sm">
+                  👤 {patientData.patientName || 'Not specified'}
+                </span>
+                
+                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xs font-medium text-slate-600 mt-1">
+                  <span>Age: {patientData.age ? `${patientData.age} years` : 'Not specified'}</span>
+                  <span>Gender: {patientData.gender || 'Not specified'}</span>
+                  <span>📱 {patientData.mobileNumber ? `+91 ${patientData.mobileNumber}` : 'Not specified'}</span>
+                  {patientData.location && <span>📍 {patientData.location}</span>}
+                </div>
+
+                {(patientData.bloodGroup || patientData.hasAllergies === 'Yes') && (
+                  <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    {patientData.bloodGroup && (
+                      <span className="font-medium">Blood Group: <span className="font-bold text-slate-800">{patientData.bloodGroup}</span></span>
+                    )}
+                    {patientData.hasAllergies === 'Yes' && patientData.allergies && (
+                      <span className="font-medium">Allergies: <span className="font-bold text-slate-800">{patientData.allergies}</span></span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </ReviewSection>
+
+            {/* Main Health Concern */}
             <ReviewSection 
               title="Main Health Concern" 
               icon={<Activity size={16} />}
-              onEdit={() => editSection('/interview')}
+              onEdit={() => editSection('/interview/concern')}
             >
-              <span className="font-bold text-slate-900 text-sm block">
-                {complaint}
-              </span>
-            </ReviewSection>
-
-            {/* Severity */}
-            <ReviewSection 
-              title="Severity" 
-              icon={<BarChart2 size={16} />}
-              onEdit={() => editSection('/interview/question/2')}
-            >
-              <span className="font-bold text-slate-900 text-sm block">
-                {severity}
-              </span>
-            </ReviewSection>
-
-            {/* Duration */}
-            <ReviewSection 
-              title="Duration" 
-              icon={<Clock size={16} />}
-              onEdit={() => editSection('/interview/question/3')}
-            >
-              <span className="font-bold text-slate-900 text-sm block">
-                {duration}
-              </span>
-            </ReviewSection>
-
-            {/* Associated Symptoms */}
-            <ReviewSection 
-              title="Associated Symptoms" 
-              icon={<MessageSquare size={16} />}
-              onEdit={() => editSection('/interview/question/4')}
-            >
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {symptoms.map((symptom, idx) => (
-                  <span key={idx} className="bg-slate-100 text-slate-800 font-semibold px-2.5 py-1 rounded-lg text-xs">
-                    {symptom}
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-slate-900 text-sm block">
+                  {concernFlow ? concernFlow.title : 'Not specified'}
+                </span>
+                {patientData.patientDescription && (
+                  <span className="text-xs text-slate-500 italic mt-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    "{patientData.patientDescription}"
                   </span>
-                ))}
+                )}
               </div>
             </ReviewSection>
+
+            {/* Dynamic Interview Answers */}
+            {concernFlow && concernFlow.questions && concernFlow.questions.length > 0 && (
+              <ReviewSection 
+                title="Interview Answers" 
+                icon={<MessageSquare size={16} />}
+                onEdit={() => editSection('/interview/question/0')}
+              >
+                <div className="flex flex-col gap-4 mt-1">
+                  {concernFlow.questions.map((q, idx) => {
+                    const ans = answers && answers[q.id];
+                    if (ans === undefined || ans === null || ans === '' || (Array.isArray(ans) && ans.length === 0)) {
+                      return null;
+                    }
+                    return (
+                      <div key={q.id} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+                          {q.question}
+                        </span>
+                        <span className="text-sm font-semibold text-slate-800">
+                          {Array.isArray(ans) ? ans.join(', ') : (q.type === 'scale' ? `${ans} / 10` : ans)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ReviewSection>
+            )}
 
             {/* Medications */}
             <ReviewSection 

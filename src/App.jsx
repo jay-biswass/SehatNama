@@ -7,8 +7,9 @@ import AppLayout from './components/layout/AppLayout';
 import Welcome from './pages/Welcome';
 import CheckIn from './pages/CheckIn';
 import Language from './pages/Language';
+import PatientDetails from './pages/PatientDetails';
 import Consent from './pages/Consent';
-import Interview from './pages/Interview';
+import ConcernSelection from './pages/ConcernSelection';
 import Question from './pages/Question';
 import PriorityAlert from './pages/PriorityAlert';
 import Documents from './pages/Documents';
@@ -24,8 +25,9 @@ function App() {
             <Route path="/" element={<Welcome />} />
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/language" element={<Language />} />
+            <Route path="/patient-details" element={<PatientDetails />} />
             <Route path="/consent" element={<Consent />} />
-            <Route path="/interview" element={<Interview />} />
+            <Route path="/interview/concern" element={<ConcernSelection />} />
             <Route path="/interview/question/:id" element={<Question />} />
             <Route path="/priority-alert" element={<PriorityAlert />} />
             <Route path="/documents" element={<Documents />} />
