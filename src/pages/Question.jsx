@@ -26,10 +26,21 @@ export const Question = () => {
     }
   }, [concernId, flow, navigate]);
 
-  if (!flow) return null;
-
-  const questions = flow.questions;
+  const questions = flow?.questions || [];
   const currentQuestion = questions[questionIndex];
+  const questionId = currentQuestion?.id;
+  const questionType = currentQuestion?.type;
+
+  const [answer, setAnswer] = useState('');
+
+  useEffect(() => {
+    if (concernId && questionId) {
+      const existing = getAnswer(concernId, questionId);
+      setAnswer(existing || (questionType === 'scale' ? 5 : ''));
+    }
+  }, [concernId, questionId, questionType, getAnswer]);
+
+  if (!flow) return null;
 
   if (!currentQuestion) {
     return (
@@ -43,17 +54,6 @@ export const Question = () => {
       </PatientLayout>
     );
   }
-
-  // Preload answer if it exists
-  const existingAnswer = getAnswer(concernId, currentQuestion.id);
-  // Using an internal state that syncs with context could be nice, but directly setting it is easier.
-  // Actually, we need local state to manage the current input before hitting continue.
-  const [answer, setAnswer] = useState(existingAnswer || (currentQuestion.type === 'scale' ? 5 : ''));
-
-  useEffect(() => {
-    const existing = getAnswer(concernId, currentQuestion.id);
-    setAnswer(existing || (currentQuestion.type === 'scale' ? 5 : ''));
-  }, [concernId, currentQuestion.id]);
 
   const handleContinue = () => {
     if (answer === '' || (Array.isArray(answer) && answer.length === 0)) return;

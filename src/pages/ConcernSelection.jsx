@@ -37,9 +37,9 @@ export const ConcernSelection = () => {
   };
 
   const handleContinue = () => {
-    if (selectedConcern) {
-      selectHealthConcern(selectedConcern, description);
-      navigate('/interview/question/0');
+    if (selectedConcern || description.trim()) {
+      selectHealthConcern(selectedConcern || 'chest_pain', description);
+      navigate('/interview');
     }
   };
 

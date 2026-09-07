@@ -10,6 +10,7 @@ import Language from './pages/Language';
 import PatientDetails from './pages/PatientDetails';
 import Consent from './pages/Consent';
 import ConcernSelection from './pages/ConcernSelection';
+import Interview from './pages/Interview';
 import Question from './pages/Question';
 import PriorityAlert from './pages/PriorityAlert';
 import Documents from './pages/Documents';
@@ -27,6 +28,7 @@ function App() {
             <Route path="/language" element={<Language />} />
             <Route path="/patient-details" element={<PatientDetails />} />
             <Route path="/consent" element={<Consent />} />
+            <Route path="/interview" element={<Interview />} />
             <Route path="/interview/concern" element={<ConcernSelection />} />
             <Route path="/interview/question/:id" element={<Question />} />
             <Route path="/priority-alert" element={<PriorityAlert />} />

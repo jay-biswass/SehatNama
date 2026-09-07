@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { extractDocument } from './documentAI/documentAIService';
 
 export const documentService = {
   /**
@@ -72,6 +73,14 @@ export const documentService = {
       console.error('[documentService.saveDocumentMetadata] Error:', err.message);
       return { data: null, error: err.message };
     }
+  },
+
+  /**
+   * Delegates medical document extraction directly to Gemini Multimodal Document AI.
+   * ZERO OCR fallback, ZERO mock data.
+   */
+  async extractDocumentInfo(file, docType = 'prescription') {
+    return extractDocument({ file, fileName: file?.name, mimeType: file?.type });
   }
 };
 

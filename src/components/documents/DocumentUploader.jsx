@@ -5,14 +5,19 @@ export const DocumentUploader = ({ onUpload, disabled }) => {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    e.stopPropagation();
+    const file = e.target.files?.[0];
+    // Reset file input value so re-uploading the same file works and no duplicate events fire
+    e.target.value = '';
+    if (file && onUpload && !disabled) {
       onUpload(file);
     }
   };
 
-  const triggerFileSelect = () => {
-    if (!disabled && fileInputRef.current) {
+  const triggerFileSelect = (e) => {
+    if (disabled) return;
+    if (e.target === fileInputRef.current) return;
+    if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
@@ -28,8 +33,9 @@ export const DocumentUploader = ({ onUpload, disabled }) => {
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
+        onClick={(e) => e.stopPropagation()}
         className="hidden"
-        accept="image/*,application/pdf"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
       />
       
       <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
@@ -41,7 +47,7 @@ export const DocumentUploader = ({ onUpload, disabled }) => {
           📷 Scan or Upload Document
         </span>
         <span className="text-xs text-slate-400 block max-w-[240px] mx-auto leading-relaxed">
-          Take a photo of your prescription or report, or upload a file from your device.
+          Take a photo of your prescription or report, or upload a file from your device (JPG, PNG, WEBP, PDF).
         </span>
       </div>
     </div>

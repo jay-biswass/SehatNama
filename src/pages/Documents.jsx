@@ -10,13 +10,18 @@ import OCRProcessing from '../components/documents/OCRProcessing';
 import ExtractedDataCard from '../components/documents/ExtractedDataCard';
 import Button from '../components/ui/Button';
 import BackButton from '../components/navigation/BackButton';
+import documentAIService from '../services/documentAI/documentAIService';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export const Documents = () => {
   const navigate = useNavigate();
   const { patientData, uploadAndAddDocument, updateDocumentStatus, removeDocument } = usePatient();
   
+  const isUploadingRef = React.useRef(false);
   const [selectedType, setSelectedType] = useState('prescription');
-  const [processingDocId, setProcessingDocId] = useState(null);
+  const [processingStage, setProcessingStage] = useState(null); // 'uploading' | 'analyzing' | null
+  const [activeDocId, setActiveDocId] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: string }
 
   const documentTypes = [
     { id: 'prescription', label: 'Prescription', description: 'Add previous medicines or prescriptions', icon: '💊' },
@@ -26,33 +31,130 @@ export const Documents = () => {
   ];
 
   const handleFileUpload = async (file) => {
-    const docId = await uploadAndAddDocument(file, selectedType);
-    setProcessingDocId(docId);
-  };
-
-  const handleOCRComplete = () => {
-    if (!processingDocId) return;
-
-    // Define mock clinical findings based on selected document type
-    let mockData = { medications: [], labResults: [] };
-    if (selectedType === 'prescription') {
-      mockData.medications = ['Metformin 500 mg', 'Amlodipine 5 mg'];
-    } else if (selectedType === 'lab') {
-      mockData.labResults = [{ name: 'HbA1c', value: '8.4%', status: 'attention' }];
-    } else if (selectedType === 'discharge') {
-      mockData.medications = ['Metformin 500 mg', 'Amlodipine 5 mg'];
-    } else {
-      mockData.medications = ['Metformin 500 mg'];
-      mockData.labResults = [{ name: 'HbA1c', value: '8.4%', status: 'attention' }];
+    if (!file) return;
+    if (isUploadingRef.current || processingStage !== null) {
+      console.warn('[Documents] Upload already in progress, ignoring duplicate trigger');
+      return;
     }
 
-    updateDocumentStatus(processingDocId, 'completed', mockData);
-    setProcessingDocId(null);
+    // Validate supported formats (JPG, JPEG, PNG, WEBP, PDF)
+    if (!documentAIService.isSupportedDocument(file)) {
+      setStatusMessage({
+        type: 'error',
+        text: 'Unsupported file format. Please upload a JPG, JPEG, PNG, WEBP, or PDF document.'
+      });
+      return;
+    }
+
+    isUploadingRef.current = true;
+    setStatusMessage(null);
+
+    // Stage 1: Uploading document...
+    setProcessingStage('uploading');
+    let docId = null;
+
+    try {
+      docId = await uploadAndAddDocument(file, selectedType);
+      setActiveDocId(docId);
+
+      // Stage 2: Analyzing document with AI...
+      setProcessingStage('analyzing');
+      updateDocumentStatus(docId, 'processing', null);
+
+      // Call server-side Gemini Multimodal Document Engine
+      const result = await documentAIService.extractDocument({
+        file,
+        fileName: file.name,
+        mimeType: file.type,
+        documentId: docId
+      });
+
+      if (result.success && result.extracted) {
+        // Stage 3: Success -> mark extracted
+        updateDocumentStatus(docId, 'extracted', result.extracted);
+        setStatusMessage({
+          type: 'success',
+          text: '✓ Document analyzed successfully'
+        });
+      } else {
+        // Failure: mark extraction_failed, preserve original document with real reason
+        const reason = result.reason || "We couldn't reliably extract information from this document. The original document has been saved.";
+        updateDocumentStatus(docId, 'extraction_failed', null, { failureReason: reason });
+        setStatusMessage({
+          type: 'error',
+          text: `⚠ ${reason}`
+        });
+      }
+    } catch (err) {
+      console.error('[Documents] Extraction pipeline error:', err);
+      const fallbackReason = "We couldn't reliably extract information from this document. The original document has been saved.";
+      if (docId) {
+        updateDocumentStatus(docId, 'extraction_failed', null, {
+          failureReason: fallbackReason
+        });
+      }
+      setStatusMessage({
+        type: 'error',
+        text: `⚠ ${fallbackReason}`
+      });
+    } finally {
+      setProcessingStage(null);
+      setActiveDocId(null);
+      isUploadingRef.current = false;
+    }
+  };
+
+  const handleRetryExtraction = async (doc) => {
+    if (!doc || !doc.id) return;
+    if (processingStage !== null || isUploadingRef.current) return; // Prevent concurrent requests
+
+    setStatusMessage(null);
+    setActiveDocId(doc.id);
+    setProcessingStage('analyzing');
+    updateDocumentStatus(doc.id, 'processing', null);
+
+    try {
+      const result = await documentAIService.extractDocument({
+        file: doc.fileRef,
+        fileName: doc.fileName || doc.name,
+        mimeType: doc.fileType || doc.type,
+        documentId: doc.id
+      });
+
+      if (result.success && result.extracted) {
+        updateDocumentStatus(doc.id, 'extracted', result.extracted);
+        setStatusMessage({
+          type: 'success',
+          text: '✓ Document analyzed successfully'
+        });
+      } else {
+        const reason = result.reason || "We couldn't reliably extract information from this document. The original document has been saved.";
+        updateDocumentStatus(doc.id, 'extraction_failed', null, { failureReason: reason });
+        setStatusMessage({
+          type: 'error',
+          text: `⚠ ${reason}`
+        });
+      }
+    } catch (err) {
+      console.error('[Documents] Retry extraction error:', err);
+      const fallbackReason = "We couldn't reliably extract information from this document. The original document has been saved.";
+      updateDocumentStatus(doc.id, 'extraction_failed', null, {
+        failureReason: fallbackReason
+      });
+      setStatusMessage({
+        type: 'error',
+        text: `⚠ ${fallbackReason}`
+      });
+    } finally {
+      setProcessingStage(null);
+      setActiveDocId(null);
+    }
   };
 
   const handleRemove = (docId) => {
-    if (processingDocId === docId) {
-      setProcessingDocId(null);
+    if (activeDocId === docId) {
+      setActiveDocId(null);
+      setProcessingStage(null);
     }
     removeDocument(docId);
   };
@@ -62,12 +164,20 @@ export const Documents = () => {
     if (patientData.emergencyAlertTriggered) {
       navigate('/priority-alert');
     } else {
-      navigate('/interview/question/4');
+      navigate('/interview');
     }
   };
 
-  const isScanning = processingDocId !== null;
+  const isScanning = processingStage !== null;
   const hasUploadedDocs = patientData.documents.length > 0;
+
+  // Build aggregate extracted data for display
+  const latestExtractedDoc = [...patientData.documents].reverse().find(d => d.status === 'extracted' && d.extraction);
+  const displayExtractedData = latestExtractedDoc ? latestExtractedDoc.extraction : (
+    (patientData.extractedMedicalData?.medications?.length > 0 || patientData.extractedMedicalData?.labResults?.length > 0)
+      ? patientData.extractedMedicalData
+      : null
+  );
 
   return (
     <PatientLayout>
@@ -87,6 +197,22 @@ export const Documents = () => {
               You can add them so your doctor can better understand your medical history.
             </p>
           </div>
+
+          {/* Status Banners */}
+          {statusMessage && !isScanning && (
+            <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fade-in ${
+              statusMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : 'bg-amber-50 text-amber-800 border border-amber-200'
+            }`}>
+              {statusMessage.type === 'success' ? (
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+              )}
+              <span>{statusMessage.text}</span>
+            </div>
+          )}
 
           {/* Document Type Grid */}
           {!isScanning && (
@@ -112,11 +238,15 @@ export const Documents = () => {
             />
           )}
 
-          {/* Scanning Animation */}
+          {/* Processing Animation */}
           {isScanning && (
             <OCRProcessing
               isProcessing={isScanning}
-              onComplete={handleOCRComplete}
+              message={
+                processingStage === 'uploading'
+                  ? 'Uploading document...'
+                  : 'Analyzing document with AI...'
+              }
             />
           )}
 
@@ -130,11 +260,14 @@ export const Documents = () => {
                 {patientData.documents.map((doc) => (
                   <UploadedDocumentCard
                     key={doc.id}
-                    name={doc.name}
+                    name={doc.fileName || doc.name}
                     size={doc.size}
                     type={doc.type}
                     status={doc.status}
+                    failureReason={doc.failureReason}
                     onRemove={() => handleRemove(doc.id)}
+                    onRetry={() => handleRetryExtraction(doc)}
+                    isRetrying={activeDocId === doc.id}
                   />
                 ))}
               </div>
@@ -142,8 +275,8 @@ export const Documents = () => {
           )}
 
           {/* Combined Extracted Clinical Details */}
-          {hasUploadedDocs && !isScanning && (
-            <ExtractedDataCard extractedData={patientData.extractedMedicalData} />
+          {hasUploadedDocs && !isScanning && displayExtractedData && (
+            <ExtractedDataCard extractedData={displayExtractedData} />
           )}
 
           {/* Action Row */}
