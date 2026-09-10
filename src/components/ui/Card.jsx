@@ -7,13 +7,15 @@ export const Card = ({
   className = '',
   ...props
 }) => {
-  const clickableStyles = onClick ? 'cursor-pointer hover:shadow-md hover:border-teal-300 hover:bg-slate-50/20 transition-all duration-200 active:scale-[0.99] select-none' : '';
-  const selectedStyles = selected ? 'border-teal-500 bg-teal-50/40 ring-1 ring-teal-500/20' : 'border-slate-200 bg-white';
+  const clickableStyles = onClick ? 'cursor-pointer hover:shadow-[var(--shadow-card)] hover:border-[var(--color-primary)]/20 transition-all duration-200 active:scale-[0.995] select-none' : '';
+  const selectedStyles = selected
+    ? 'border-[var(--color-primary)]/40 bg-[var(--color-primary-light)] ring-1 ring-[var(--color-primary)]/15 shadow-[var(--shadow-sm)]'
+    : 'border-[var(--color-border)] bg-[var(--color-bg-elevated)]';
 
   return (
     <div
       onClick={onClick}
-      className={`border rounded-2xl p-5 ${clickableStyles} ${selectedStyles} ${className}`}
+      className={`border rounded-[var(--radius-md)] p-5 shadow-[var(--shadow-xs)] ${clickableStyles} ${selectedStyles} ${className}`}
       {...props}
     >
       {children}

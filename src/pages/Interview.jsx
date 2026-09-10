@@ -145,20 +145,20 @@ export const Interview = () => {
     <PatientLayout>
       <InterviewHeader currentStepText={`Clinical Intake (${progress.percentage}%)`} />
 
-      <PageContainer className="justify-between py-4 max-w-2xl mx-auto flex flex-col h-[calc(100vh-80px)]">
+      <PageContainer className="justify-between py-4 max-w-2xl mx-auto flex flex-col h-[calc(100dvh-80px)]">
         {/* Top Controls Bar */}
-        <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-slate-100">
+        <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-[var(--color-border)]">
           <BackButton to="/interview/concern" />
 
           {/* SOCRATES Progress Bar */}
           <div className="flex-1 max-w-xs mx-2 hidden sm:flex flex-col gap-1">
-            <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            <div className="flex justify-between text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               <span>Clinical History</span>
               <span>{progress.percentage}%</span>
             </div>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-teal-600 rounded-full transition-all duration-500"
+                className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-500"
                 style={{ width: `${progress.percentage}%` }}
               />
             </div>
@@ -167,8 +167,8 @@ export const Interview = () => {
           <div className="flex items-center gap-1.5">
             {/* Audio Wave Indicator when Assistant is Speaking */}
             {isTtsSpeaking && (
-              <div className="flex items-center gap-1 bg-teal-50 border border-teal-200 px-2 py-1 rounded-xl animate-pulse text-teal-800 text-[11px] font-bold">
-                <Radio size={12} className="animate-spin text-teal-600" />
+              <div className="flex items-center gap-1 bg-[var(--color-primary-muted)] border border-[var(--color-primary)]/15 px-2 py-1 rounded-md animate-pulse text-[var(--color-primary)] text-[11px] font-semibold">
+                <Radio size={12} className="animate-spin" />
                 <span className="hidden md:inline">Speaking</span>
               </div>
             )}
@@ -178,7 +178,7 @@ export const Interview = () => {
               type="button"
               onClick={handleRepeatSpeech}
               title="Repeat question"
-              className="flex items-center gap-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 p-2 sm:px-2.5 sm:py-1.5 rounded-xl transition-all cursor-pointer"
+              className="flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-bg-base)] hover:bg-slate-100 border border-[var(--color-border)] p-2 sm:px-2.5 sm:py-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer"
             >
               <RotateCcw size={14} />
               <span className="hidden sm:inline">Repeat</span>
@@ -189,10 +189,10 @@ export const Interview = () => {
               type="button"
               onClick={handleToggleMute}
               title={isTtsMuted ? "Unmute voice" : "Mute voice"}
-              className={`flex items-center gap-1 text-xs font-bold p-2 sm:px-2.5 sm:py-1.5 rounded-xl border transition-all cursor-pointer ${
+              className={`flex items-center gap-1 text-xs font-medium p-2 sm:px-2.5 sm:py-1.5 rounded-[var(--radius-sm)] border transition-all cursor-pointer ${
                 isTtsMuted
-                  ? 'text-slate-500 bg-slate-100 border-slate-300'
-                  : 'text-teal-800 bg-teal-50 border-teal-200 hover:bg-teal-100'
+                  ? 'text-[var(--color-text-muted)] bg-[var(--color-bg-base)] border-[var(--color-border)]'
+                  : 'text-[var(--color-primary)] bg-[var(--color-primary-muted)] border-[var(--color-primary)]/15 hover:bg-[var(--color-primary-light)]'
               }`}
             >
               {isTtsMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -203,7 +203,7 @@ export const Interview = () => {
             <button
               type="button"
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100/70 border border-teal-200 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-primary)] bg-[var(--color-primary-muted)] hover:bg-[var(--color-primary-light)] border border-[var(--color-primary)]/15 px-2.5 py-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer"
             >
               <Globe size={14} />
               <span>{currentLang === 'hi' ? 'English' : 'हिन्दी'}</span>
@@ -214,7 +214,7 @@ export const Interview = () => {
               type="button"
               onClick={() => navigate('/priority-alert')}
               title="Urgent assistance"
-              className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1.5 rounded-xl transition-all cursor-pointer"
+              className="flex items-center gap-1 text-xs font-medium text-[var(--color-danger)] bg-[var(--color-danger-light)] hover:bg-red-100 border border-red-200/50 px-2 py-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer"
             >
               <AlertOctagon size={14} />
               <span className="hidden md:inline">Emergency</span>
@@ -242,7 +242,7 @@ export const Interview = () => {
                         type="button"
                         onClick={() => handleSpeakSpecificText(msg.text)}
                         title="Listen again"
-                        className="shrink-0 p-1.5 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer"
+                        className="shrink-0 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-muted)] rounded-md transition-colors cursor-pointer"
                       >
                         <Volume2 size={15} />
                       </button>
@@ -255,7 +255,7 @@ export const Interview = () => {
             // Patient speech/message bubble
             return (
               <div key={msg.id} className="flex justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
-                <div className="max-w-[85%] sm:max-w-[75%] bg-teal-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm shadow-teal-600/10">
+                <div className="max-w-[85%] sm:max-w-[75%] bg-[var(--color-primary)] text-white rounded-[var(--radius-md)] rounded-tr-sm px-4 py-3 shadow-[var(--shadow-sm)]">
                   <div className="flex items-center gap-1.5 mb-1 justify-end">
                     <span className="text-[10px] font-bold tracking-wider uppercase text-teal-100 opacity-90">
                       {msg.inputType === 'voice' ? '🎙️ Spoken' : msg.inputType === 'touch' ? '👆 Selected' : 'Typed'}
@@ -271,9 +271,9 @@ export const Interview = () => {
 
           {/* AI Thinking/Processing Indicator */}
           {conversation.isProcessing && (
-            <div className="flex items-center gap-3 p-3 bg-teal-50/60 border border-teal-100 rounded-2xl max-w-sm animate-pulse">
-              <Sparkles size={18} className="text-teal-600 animate-spin" />
-              <span className="text-xs font-semibold text-teal-900">
+            <div className="flex items-center gap-3 p-3 bg-[var(--color-primary-muted)] border border-[var(--color-primary)]/10 rounded-[var(--radius-md)] max-w-sm animate-pulse">
+              <Sparkles size={16} className="text-[var(--color-primary)] animate-spin" />
+              <span className="text-xs font-medium text-[var(--color-primary)]">
                 Understanding symptoms & checking clinical guidelines...
               </span>
             </div>
@@ -281,14 +281,14 @@ export const Interview = () => {
 
           {/* Completion state card */}
           {conversation.status === 'completed' && (
-            <div className="p-5 bg-teal-50 border border-teal-200 rounded-2xl flex flex-col gap-3 text-center my-4 animate-in zoom-in-95">
-              <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle2 size={24} />
+            <div className="p-5 bg-[var(--color-primary-light)] border border-[var(--color-primary)]/15 rounded-[var(--radius-lg)] flex flex-col gap-3 text-center my-4 animate-fade-in">
+              <div className="w-10 h-10 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 size={22} />
               </div>
-              <h3 className="font-bold text-slate-800 text-base">
+              <h3 className="font-semibold text-[var(--color-text-primary)] text-base">
                 {currentLang === 'hi' ? 'चिकित्सकीय इतिहास पूर्ण हुआ' : 'Clinical History Gathered'}
               </h3>
-              <p className="text-xs text-slate-600 max-w-sm mx-auto">
+              <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto">
                 {currentLang === 'hi'
                   ? 'आपकी जानकारी सुरक्षित रूप से संरचित कर ली गई है। आप अगले चरण में अपनी पिछली रिपोर्ट अपलोड कर सकते हैं।'
                   : 'Your clinical history has been structured for your doctor. You can now upload existing reports or proceed to review.'}
@@ -297,7 +297,7 @@ export const Interview = () => {
                 size="lg"
                 className="w-full mt-1"
                 onClick={() => navigate('/documents')}
-                icon={<ArrowRight size={18} />}
+                icon={<ArrowRight size={16} />}
               >
                 {currentLang === 'hi' ? 'दस्तावेज़ जोड़ें (Continue to Documents)' : 'Continue to Documents'}
               </Button>
@@ -309,7 +309,7 @@ export const Interview = () => {
 
         {/* Interactive Response Section */}
         {conversation.status !== 'completed' && conversation.status !== 'alert' && (
-          <div className="shrink-0 pt-2 flex flex-col gap-3 bg-white border-t border-slate-100">
+          <div className="shrink-0 pt-2 flex flex-col gap-3 bg-[var(--color-bg-elevated)] border-t border-[var(--color-border)]">
             {/* Quick-Response Touch Options (Chips) */}
             {activeOptions.length > 0 && (
               <div className="flex flex-wrap gap-2 justify-center py-1">
@@ -319,7 +319,7 @@ export const Interview = () => {
                     type="button"
                     disabled={conversation.isProcessing || isVoiceListening}
                     onClick={() => handleTouchOption(opt)}
-                    className="text-xs font-semibold px-3 py-2 bg-slate-50 hover:bg-teal-50 hover:text-teal-900 hover:border-teal-300 border border-slate-200 text-slate-700 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                    className="text-xs font-medium px-3 py-2 bg-[var(--color-bg-base)] hover:bg-[var(--color-primary-muted)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)]/20 border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-[var(--radius-sm)] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
                   >
                     {opt}
                   </button>

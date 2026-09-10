@@ -56,4 +56,4 @@ async function testPdf(model) {
   console.log('PDF response:', text.slice(0, 150));
 }
 
-testPdf('gemini-2.5-flash');
+testPdf('gemini-3.6-flash');

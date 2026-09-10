@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePatient } from '../../context/PatientContext';
-import { Heart } from 'lucide-react';
+import logoIcon from '../../assets/SehatNama_Logo.png';
 
 export const InterviewHeader = ({ currentStepText }) => {
   const { patientData } = usePatient();
@@ -8,9 +8,7 @@ export const InterviewHeader = ({ currentStepText }) => {
   return (
     <div className="bg-teal-50/80 border-b border-teal-100/60 px-6 py-3.5 flex items-center justify-between text-teal-800 shrink-0 select-none">
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-teal-600 flex items-center justify-center text-white">
-          <Heart size={12} className="fill-white stroke-teal-600" />
-        </div>
+        <img src={logoIcon} alt="SehatNama" className="h-6 w-auto object-contain shrink-0" />
         <span className="font-bold text-xs tracking-wide text-teal-900 uppercase">AI Health Assistant</span>
       </div>
       

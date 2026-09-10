@@ -30,6 +30,19 @@ export const patientService = {
         payload.id = data.id;
       }
 
+      if (data.profile_id) {
+        payload.profile_id = data.profile_id;
+      } else {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id) {
+            payload.profile_id = authData.user.id;
+          }
+        } catch {
+          // ignore if unauthenticated guest
+        }
+      }
+      
       const { data: result, error } = await supabase
         .from('patients')
         .upsert(payload, { onConflict: 'id' })

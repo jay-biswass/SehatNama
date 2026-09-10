@@ -98,7 +98,7 @@ console.log('\n--- 2. Protocol Registry Integrity Tests ---');
 runTest('Protocol Registry contains 46+ clinical protocols plus generic fallback', () => {
   const protocols = getAllProtocols();
   assert.ok(protocols.length >= 25, `Expected >= 25 protocols, found ${protocols.length}`);
-  
+
   // Verify key protocols exist
   const expectedKeys = [
     'chest_pain', 'palpitations', 'leg_swelling',
@@ -1064,12 +1064,12 @@ await runTest('19. Gemini Document AI: 17. Differentiated HTTP error handling (4
   }
 });
 
-await runTest('20. Gemini Document AI: 18. Auto-upgrade legacy gemini-2.5-flash to active multimodal model', () => {
+await runTest('20. Gemini Document AI: 18. Auto-upgrade legacy gemini-3.6-flash to active multimodal model', () => {
   const origModel = process.env.GEMINI_MODEL;
   try {
-    process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+    process.env.GEMINI_MODEL = 'gemini-3.6-flash';
     const resolved = getCompatibleModel();
-    assert.strictEqual(resolved, COMPATIBLE_MULTIMODAL_MODEL, 'gemini-2.5-flash must auto-upgrade to active gemini-3.6-flash');
+    assert.strictEqual(resolved, COMPATIBLE_MULTIMODAL_MODEL, 'gemini-3.6-flash must auto-upgrade to active gemini-3.6-flash');
 
     process.env.GEMINI_MODEL = 'gemini-3.6-flash';
     assert.strictEqual(getCompatibleModel(), 'gemini-3.6-flash');

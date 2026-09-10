@@ -19,9 +19,9 @@ export const BackButton = ({ to, onClick, className = '' }) => {
     <button
       type="button"
       onClick={handleBack}
-      className={`inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 text-sm font-medium transition-colors duration-200 cursor-pointer select-none ${className}`}
+      className={`inline-flex items-center gap-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm font-medium transition-colors duration-200 cursor-pointer select-none ${className}`}
     >
-      <ArrowLeft size={16} />
+      <ArrowLeft size={15} />
       <span>Back</span>
     </button>
   );

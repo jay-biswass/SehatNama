@@ -23,24 +23,21 @@ export const Language = () => {
 
   return (
     <PageContainer className="justify-between py-6">
-      {/* Navigation Row */}
       <div className="flex items-center justify-between mb-2 shrink-0">
         <BackButton to="/check-in" />
       </div>
 
       <div className="flex-1 flex flex-col justify-center max-w-lg mx-auto w-full gap-6">
-        {/* Page Header */}
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">
+          <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-1">
             Choose your language
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             Select the language you are most comfortable speaking or reading.
           </p>
         </div>
 
-        {/* Language Grid */}
-        <div className="grid grid-cols-2 gap-4 my-2">
+        <div className="grid grid-cols-2 gap-3 my-2">
           {languages.map((lang) => {
             const isSelected = patientData.selectedLanguage === lang.name;
             return (
@@ -48,16 +45,12 @@ export const Language = () => {
                 key={lang.id}
                 onClick={() => handleSelectLanguage(lang.name)}
                 selected={isSelected}
-                className={`flex flex-col items-center justify-center p-6 text-center select-none ${
-                  isSelected 
-                    ? 'border-teal-500 bg-teal-50/20 shadow-sm shadow-teal-500/10' 
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
+                className="flex flex-col items-center justify-center p-5 text-center select-none"
               >
-                <span className="text-base font-bold text-slate-800 mb-0.5">
+                <span className="text-sm font-semibold text-[var(--color-text-primary)] mb-0.5">
                   {lang.nativeName}
                 </span>
-                <span className="text-xs text-slate-400 font-medium">
+                <span className="text-xs text-[var(--color-text-muted)]">
                   {lang.name}
                 </span>
               </Card>
@@ -65,20 +58,16 @@ export const Language = () => {
           })}
         </div>
 
-        {/* Continue Button */}
-        <div className="w-full mt-2">
-          <Button
-            size="lg"
-            className="w-full py-3.5 text-sm"
-            onClick={handleContinue}
-            disabled={!patientData.selectedLanguage}
-          >
-            Continue
-          </Button>
-        </div>
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={handleContinue}
+          disabled={!patientData.selectedLanguage}
+        >
+          Continue
+        </Button>
       </div>
       
-      {/* Empty spacer footer for vertical balance */}
       <div className="h-6 shrink-0" />
     </PageContainer>
   );

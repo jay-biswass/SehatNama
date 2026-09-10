@@ -60,12 +60,12 @@ export const getEnv = (key) => {
   return (process.env[key] ? process.env[key].trim() : '') || '';
 };
 
-export const COMPATIBLE_MULTIMODAL_MODEL = 'gemini-3.6-flash';
+export const COMPATIBLE_MULTIMODAL_MODEL = 'gemini-flash-latest';
 
 export function getCompatibleModel() {
   const configured = getEnv('GEMINI_MODEL') || COMPATIBLE_MULTIMODAL_MODEL;
-  // If deprecated gemini-2.5-flash is configured, automatically upgrade to active model gemini-3.6-flash
-  if (configured.toLowerCase() === 'gemini-2.5-flash') {
+  // If deprecated gemini-flash-latest is configured, automatically upgrade to active model gemini-flash-latest
+  if (configured.toLowerCase() === 'gemini-flash-latest') {
     return COMPATIBLE_MULTIMODAL_MODEL;
   }
   return configured;
@@ -245,37 +245,37 @@ export function validateAndSanitizeGeminiResponse(rawText) {
     diagnoses: Array.isArray(parsed.diagnoses) ? parsed.diagnoses.filter(Boolean).map(d => String(d).trim()) : [],
     medications: Array.isArray(parsed.medications)
       ? parsed.medications
-          .filter(m => m && typeof m === 'object' && m.name)
-          .map(m => ({
-            name: String(m.name || '').trim(),
-            dose: m.dose || m.dosage || null,
-            route: m.route || null,
-            frequency: m.frequency || null,
-            duration: m.duration || null,
-            instructions: m.instructions || null
-          }))
+        .filter(m => m && typeof m === 'object' && m.name)
+        .map(m => ({
+          name: String(m.name || '').trim(),
+          dose: m.dose || m.dosage || null,
+          route: m.route || null,
+          frequency: m.frequency || null,
+          duration: m.duration || null,
+          instructions: m.instructions || null
+        }))
       : [],
     investigations: Array.isArray(parsed.investigations || parsed.labTests || parsed.labResults)
       ? (parsed.investigations || parsed.labTests || parsed.labResults)
-          .filter(i => i && typeof i === 'object' && (i.name || i.testName || i.value))
-          .map(i => ({
-            name: String(i.name || i.testName || '').trim(),
-            value: i.value !== undefined && i.value !== null ? String(i.value) : null,
-            unit: i.unit || null,
-            referenceRange: i.referenceRange || i.range || null,
-            flag: i.flag || null
-          }))
+        .filter(i => i && typeof i === 'object' && (i.name || i.testName || i.value))
+        .map(i => ({
+          name: String(i.name || i.testName || '').trim(),
+          value: i.value !== undefined && i.value !== null ? String(i.value) : null,
+          unit: i.unit || null,
+          referenceRange: i.referenceRange || i.range || null,
+          flag: i.flag || null
+        }))
       : [],
     labResults: Array.isArray(parsed.investigations || parsed.labTests || parsed.labResults)
       ? (parsed.investigations || parsed.labTests || parsed.labResults)
-          .filter(i => i && typeof i === 'object' && (i.name || i.testName || i.value))
-          .map(i => ({
-            name: String(i.name || i.testName || '').trim(),
-            value: i.value !== undefined && i.value !== null ? String(i.value) : null,
-            unit: i.unit || null,
-            referenceRange: i.referenceRange || i.range || null,
-            flag: i.flag || null
-          }))
+        .filter(i => i && typeof i === 'object' && (i.name || i.testName || i.value))
+        .map(i => ({
+          name: String(i.name || i.testName || '').trim(),
+          value: i.value !== undefined && i.value !== null ? String(i.value) : null,
+          unit: i.unit || null,
+          referenceRange: i.referenceRange || i.range || null,
+          flag: i.flag || null
+        }))
       : [],
     procedures: Array.isArray(parsed.procedures) ? parsed.procedures.filter(Boolean).map(p => String(p).trim()) : [],
     allergies: Array.isArray(parsed.allergies) ? parsed.allergies.filter(Boolean).map(a => String(a).trim()) : [],

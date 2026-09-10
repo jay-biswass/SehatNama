@@ -16,14 +16,26 @@ import {
 import Button from '../../components/ui/Button';
 
 export const DoctorProfile = () => {
-  const { profile, updateProfile, logout } = useAuth();
+  const { doctorProfile: profile, doctorUser: user, updateDoctorProfile: updateProfile, signOutDoctor: logout } = useAuth();
 
-  const [fullName, setFullName] = useState(profile?.full_name || 'Dr. Ananya Sharma');
-  const [specialization, setSpecialization] = useState(profile?.specialization || 'General Physician & Cardiometabolic Care');
-  const [hospital, setHospital] = useState(profile?.hospital || 'All India Institute of Medical Sciences (AIIMS)');
-  const [registrationNo, setRegistrationNo] = useState(profile?.registration_no || 'MCI-2018-98421');
+  const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [specialization, setSpecialization] = useState(profile?.specialization || '');
+  const [hospital, setHospital] = useState(profile?.hospital || '');
+  const [registrationNo, setRegistrationNo] = useState(profile?.registration_no || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Sync state whenever authenticated profile loads/updates
+  React.useEffect(() => {
+    if (profile) {
+      if (profile.full_name) setFullName(profile.full_name);
+      if (profile.specialization) setSpecialization(profile.specialization);
+      if (profile.hospital) setHospital(profile.hospital);
+      if (profile.registration_no) setRegistrationNo(profile.registration_no);
+      if (profile.phone) setPhone(profile.phone);
+    }
+  }, [profile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,10 +44,11 @@ export const DoctorProfile = () => {
 
     try {
       await updateProfile({
-        full_name: fullName,
-        specialization,
-        hospital,
-        registration_no: registrationNo
+        full_name: fullName.trim(),
+        specialization: specialization.trim(),
+        hospital: hospital.trim(),
+        registration_no: registrationNo.trim(),
+        phone: phone.trim()
       });
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -115,7 +128,7 @@ export const DoctorProfile = () => {
               </label>
               <input
                 type="email"
-                value={profile?.email || 'dr.sharma@sehatnama.in'}
+                value={profile?.email || user?.email || ''}
                 disabled
                 className="p-3 text-xs bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-medium cursor-not-allowed"
               />
@@ -149,8 +162,22 @@ export const DoctorProfile = () => {
               />
             </div>
 
+            {/* Phone Number */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                Contact Phone Number
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white text-slate-800 font-medium transition-all"
+              />
+            </div>
+
             {/* Medical Registration Number */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-700">
                 Medical Council Registration No.
               </label>

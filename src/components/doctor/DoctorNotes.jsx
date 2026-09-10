@@ -75,7 +75,7 @@ export const DoctorNotes = ({
 
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-slate-400 font-semibold">
-            Signed by: <strong className="text-slate-800">{doctorProfile.full_name || 'Dr. Ananya Sharma'}</strong>
+            Signed by: <strong className="text-slate-800">{doctorProfile.full_name || 'Attending Physician'}</strong>
           </span>
 
           <div className="flex items-center gap-2">

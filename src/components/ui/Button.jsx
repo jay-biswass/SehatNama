@@ -3,7 +3,7 @@ import React from 'react';
 export const Button = ({
   children,
   type = 'button',
-  variant = 'primary', // 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant = 'primary', // 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline'
   size = 'md', // 'sm' | 'md' | 'lg'
   onClick,
   disabled = false,
@@ -12,19 +12,20 @@ export const Button = ({
   icon,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 select-none';
-  
+  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-[var(--radius-sm)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)]/30 cursor-pointer disabled:cursor-not-allowed disabled:opacity-45 select-none active:translate-y-px';
+
   const variants = {
-    primary: 'bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/10 focus:ring-teal-500',
-    secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-800 focus:ring-slate-300',
-    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/10 focus:ring-red-500',
-    ghost: 'bg-transparent hover:bg-slate-100/80 text-slate-600 focus:ring-slate-300'
+    primary: 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-[var(--shadow-sm)]',
+    secondary: 'bg-slate-100 hover:bg-slate-150 text-slate-700 border border-[var(--color-border)]',
+    danger: 'bg-[var(--color-danger)] hover:bg-red-700 text-white shadow-[var(--shadow-sm)]',
+    ghost: 'bg-transparent hover:bg-slate-100/70 text-slate-600',
+    outline: 'bg-transparent hover:bg-[var(--color-primary-muted)] text-[var(--color-primary)] border border-[var(--color-primary)]/25'
   };
 
   const sizes = {
     sm: 'px-3 py-1.5 text-xs gap-1.5',
-    md: 'px-5 py-2.5 text-sm gap-2',
-    lg: 'px-6 py-3.5 text-base gap-2.5'
+    md: 'px-4 py-2.5 text-sm gap-2',
+    lg: 'px-6 py-3 text-sm gap-2.5'
   };
 
   return (

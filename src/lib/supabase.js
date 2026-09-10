@@ -23,7 +23,35 @@ export const isSupabaseConfigured = () => {
   );
 };
 
-// Safe initialization of Supabase client
-export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : createClient('https://placeholder.supabase.co', 'placeholder-key');
+const url = isSupabaseConfigured() ? supabaseUrl : 'https://placeholder.supabase.co';
+const key = isSupabaseConfigured() ? supabaseAnonKey : 'placeholder-key';
+
+/**
+ * Isolated Supabase Client for Patient Auth & Portal
+ * Uses dedicated storage key: 'sehatnama-patient-auth-token'
+ */
+export const patientSupabase = createClient(url, key, {
+  auth: {
+    storageKey: 'sehatnama-patient-auth-token',
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+/**
+ * Isolated Supabase Client for Doctor Auth & Clinical Portal
+ * Uses dedicated storage key: 'sehatnama-doctor-auth-token'
+ */
+export const doctorSupabase = createClient(url, key, {
+  auth: {
+    storageKey: 'sehatnama-doctor-auth-token',
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Default fallback export (Patient client as primary)
+export const supabase = patientSupabase;
+

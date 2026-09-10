@@ -119,41 +119,56 @@ export const DoctorDashboard = () => {
       <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-10">
         
         {/* ========================================================================= */}
-        {/* 1. HERO GREETING SECTION (Matching Reference Design Header) */}
+        {/* 1. HERO GREETING SECTION */}
         {/* ========================================================================= */}
-        <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-sky-50/60 border border-blue-100/60 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-[0_10px_30px_-10px_rgba(37,99,235,0.06)] relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-sky-50/60 border border-blue-100/60 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_10px_30px_-10px_rgba(37,99,235,0.06)] relative overflow-hidden">
           {/* Subtle Decorative Backdrop Elements */}
           <div className="absolute top-0 right-1/3 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Left Text */}
-          <div className="flex flex-col gap-1.5 text-center sm:text-left z-10 max-w-xl">
+          <div className="flex flex-col gap-2 text-center md:text-left z-10 max-w-xl">
             <span className="text-xs font-bold text-slate-400 tracking-wide uppercase">
-              Good Morning,
+              Clinical Practitioner Portal
             </span>
             
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-              Take care of <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">your health.</span>
+              Welcome, <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">{profile?.full_name || 'Doctor'}</span>
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1 leading-relaxed">
-              Welcome back, <strong className="text-slate-800">{profile?.full_name || 'Dr. Ananya Sharma'}</strong>. Review clinical triage applications and triage urgent patient cases in real-time.
+            <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+              Review real-time clinical triage applications, evaluate patient histories, and record private case observations.
             </p>
+
+            {/* Practitioner Quick Badges */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-full">
+                {profile?.specialization || 'General Practice'}
+              </span>
+              <span className="text-[11px] font-medium text-slate-600 bg-white/80 border border-slate-200/80 px-2.5 py-1 rounded-full">
+                {profile?.hospital || 'Hospital / Clinic not specified'}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500 bg-white/60 border border-slate-200/60 px-2.5 py-1 rounded-full">
+                Reg: {profile?.registration_no || 'Not provided'}
+              </span>
+            </div>
           </div>
 
-          {/* Right Hero Image (Reference Doctor Graphic with Circular Backdrop) */}
+          {/* Right Hero Avatar */}
           <div className="relative shrink-0 z-10">
-            <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-blue-400/30 to-sky-200/50 p-2 shadow-lg shadow-blue-500/10 flex items-center justify-center">
-              <img
-                src="/doctor_hero.jpg"
-                alt="Doctor Illustration"
-                className="w-full h-full rounded-full object-cover border-4 border-white shadow-md hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-              <div className="w-full h-full rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-2xl hidden items-center justify-center shadow-md">
-                DS
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-blue-400/30 to-sky-200/50 p-1.5 shadow-lg shadow-blue-500/10 flex items-center justify-center">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile?.full_name || 'Doctor'}
+                  className="w-full h-full rounded-full object-cover border-4 border-white shadow-md hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className={`w-full h-full rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-md ${profile?.avatar_url ? 'hidden' : 'flex'}`}>
+                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'Dr'}
               </div>
             </div>
           </div>

@@ -46,7 +46,7 @@ export const Question = () => {
     return (
       <PatientLayout>
         <PageContainer className="justify-center items-center">
-          <p className="text-slate-500 font-semibold">Question not found.</p>
+          <p className="text-[var(--color-text-secondary)] font-medium">Question not found.</p>
           <Button onClick={() => navigate('/interview/concern')} className="mt-4">
             Return to Start
           </Button>
@@ -100,14 +100,14 @@ export const Question = () => {
         </div>
 
         <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full gap-5">
-          <AssistantMessage title="Sehat Assistant" className="mb-2">
-            <span className="font-medium text-slate-700">
+          <AssistantMessage title="Sehat Assistant" className="mb-1">
+            <span className="font-medium text-[var(--color-text-secondary)]">
               {getAssistantMessage()}
             </span>
           </AssistantMessage>
 
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm shadow-slate-200/50 flex flex-col gap-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
-            <h3 className="text-xl font-bold text-slate-800 leading-tight">
+          <div className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-card)] flex flex-col gap-5 animate-fade-in">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] leading-snug">
               {currentQuestion.question}
             </h3>
 
@@ -120,16 +120,14 @@ export const Question = () => {
             </div>
           </div>
 
-          <div className="mt-4">
-            <Button
-              size="lg"
-              className="w-full py-3.5 text-sm"
-              onClick={handleContinue}
-              disabled={answer === '' || (Array.isArray(answer) && answer.length === 0)}
-            >
-              Continue
-            </Button>
-          </div>
+          <Button
+            size="lg"
+            className="w-full mt-2"
+            onClick={handleContinue}
+            disabled={answer === '' || (Array.isArray(answer) && answer.length === 0)}
+          >
+            Continue
+          </Button>
         </div>
       </PageContainer>
     </PatientLayout>

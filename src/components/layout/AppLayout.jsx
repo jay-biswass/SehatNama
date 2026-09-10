@@ -7,20 +7,19 @@ export const AppLayout = ({ children }) => {
   const location = useLocation();
   const path = location.pathname;
 
-  // Decide if we should show header and progress bar
   // The Welcome page ("/") and Success page ("/success") don't show the full progress bar
   const isLandingOrSuccess = path === '/' || path === '/success';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-0 sm:p-4 md:p-6 select-none font-sans text-slate-800">
-      <div className="w-full max-w-2xl bg-white min-h-screen sm:min-h-[850px] sm:max-h-[900px] flex flex-col sm:rounded-3xl sm:shadow-2xl sm:border sm:border-slate-100 overflow-hidden relative">
+    <div className="min-h-[100dvh] bg-[var(--color-bg-base)] flex flex-col select-none font-sans text-[var(--color-text-primary)]">
+      <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col">
         {!isLandingOrSuccess && (
           <>
             <Header />
             <ProgressBar />
           </>
         )}
-        <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="flex-1 flex flex-col">
           {children}
         </div>
       </div>

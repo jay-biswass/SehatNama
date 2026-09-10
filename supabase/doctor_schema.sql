@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS public.case_notes (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.case_notes 
+  ADD COLUMN IF NOT EXISTS doctor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS doctor_name TEXT DEFAULT 'Doctor';
+
 -- 4. Create indexes for high-speed doctor queries
 CREATE INDEX IF NOT EXISTS idx_cases_priority ON public.cases(priority_level);
 CREATE INDEX IF NOT EXISTS idx_cases_created ON public.cases(created_at DESC);
@@ -35,10 +39,20 @@ CREATE INDEX IF NOT EXISTS idx_cases_submitted ON public.cases(submitted_at DESC
 CREATE INDEX IF NOT EXISTS idx_case_notes_case ON public.case_notes(case_id);
 CREATE INDEX IF NOT EXISTS idx_case_notes_doctor ON public.case_notes(doctor_id);
 
--- 5. Enable Row Level Security (RLS) on case_notes
+-- 5. SECURITY DEFINER Helper Function
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+$$;
+
+-- 6. Enable Row Level Security (RLS) on case_notes
 ALTER TABLE public.case_notes ENABLE ROW LEVEL SECURITY;
 
--- 6. RLS Policies for case_notes (Private to Doctors & Admins)
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Allow doctors to read case notes" ON public.case_notes;
 DROP POLICY IF EXISTS "Allow doctors to insert case notes" ON public.case_notes;
@@ -48,12 +62,8 @@ CREATE POLICY "Allow doctors to read case notes"
   ON public.case_notes 
   FOR SELECT 
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role IN ('doctor', 'admin')
-    )
-    OR auth.role() = 'authenticated' -- Fallback for prototype mode
+    public.get_my_role() IN ('doctor', 'admin')
+    OR auth.role() = 'authenticated'
     OR true
   );
 
@@ -61,11 +71,7 @@ CREATE POLICY "Allow doctors to insert case notes"
   ON public.case_notes 
   FOR INSERT 
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role IN ('doctor', 'admin')
-    )
+    public.get_my_role() IN ('doctor', 'admin')
     OR auth.role() = 'authenticated'
     OR true
   );
@@ -75,7 +81,7 @@ CREATE POLICY "Allow doctors to update case notes"
   FOR UPDATE 
   USING (
     doctor_id = auth.uid()
-    OR auth.role() = 'authenticated'
+    OR public.get_my_role() IN ('doctor', 'admin')
     OR true
   );
 

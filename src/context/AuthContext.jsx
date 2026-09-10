@@ -1,82 +1,157 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { patientSupabase, doctorSupabase, isSupabaseConfigured } from '../lib/supabase';
 
-const AuthContext = createContext();
-
-const LOCAL_STORAGE_DOCTOR_KEY = 'sehatnama_doctor_session';
-
-const DEFAULT_DOCTOR_PROFILE = {
-  id: 'd0c70000-0000-0000-0000-000000000001',
-  full_name: 'Dr. Ananya Sharma',
-  role: 'doctor',
-  email: 'dr.sharma@sehatnama.in',
-  specialization: 'General Physician & Cardiometabolic Care',
-  hospital: 'All India Institute of Medical Sciences (AIIMS)',
-  registration_no: 'MCI-2018-98421'
-};
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [role, setRole] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Patient Auth State
+  const [patientSession, setPatientSession] = useState(null);
+  const [patientUser, setPatientUser] = useState(null);
+  const [patientProfile, setPatientProfile] = useState(null);
+  const [isPatientLoading, setIsPatientLoading] = useState(true);
 
-  // Initialize auth state
+  // Doctor Auth State
+  const [doctorSession, setDoctorSession] = useState(null);
+  const [doctorUser, setDoctorUser] = useState(null);
+  const [doctorProfile, setDoctorProfile] = useState(null);
+  const [isDoctorLoading, setIsDoctorLoading] = useState(true);
+
+  /**
+   * Fetch Patient Profile from public.profiles
+   */
+  const fetchPatientProfile = useCallback(async (authUser) => {
+    if (!authUser || !isSupabaseConfigured()) {
+      setPatientProfile(null);
+      return null;
+    }
+
+    try {
+      const { data, error } = await patientSupabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[AuthContext] Error fetching patient profile:', error.message);
+      }
+
+      if (data) {
+        setPatientProfile(data);
+        return data;
+      }
+
+      // If no profile row exists, create a default patient profile
+      const defaultProfile = {
+        id: authUser.id,
+        email: authUser.email,
+        full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+        phone: authUser.user_metadata?.phone || null,
+        role: 'patient',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: inserted, error: insertError } = await patientSupabase
+        .from('profiles')
+        .insert(defaultProfile)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.warn('[AuthContext] Error creating patient fallback profile:', insertError.message);
+        setPatientProfile(defaultProfile);
+        return defaultProfile;
+      }
+
+      setPatientProfile(inserted);
+      return inserted;
+    } catch (err) {
+      console.error('[AuthContext.fetchPatientProfile] Unexpected error:', err.message);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Fetch Doctor Profile from public.profiles
+   */
+  const fetchDoctorProfile = useCallback(async (authUser) => {
+    if (!authUser || !isSupabaseConfigured()) {
+      setDoctorProfile(null);
+      return null;
+    }
+
+    try {
+      const { data, error } = await doctorSupabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[AuthContext] Error fetching doctor profile:', error.message);
+      }
+
+      if (data) {
+        setDoctorProfile(data);
+        return data;
+      }
+
+      return null;
+    } catch (err) {
+      console.error('[AuthContext.fetchDoctorProfile] Unexpected error:', err.message);
+      return null;
+    }
+  }, []);
+
+  // Initialize Patient Auth Session
   useEffect(() => {
     let isMounted = true;
 
-    const initAuth = async () => {
+    const initPatientAuth = async () => {
       try {
-        // First check local stored doctor session (for quick persistence/dev fallback)
-        const localDoctorSession = localStorage.getItem(LOCAL_STORAGE_DOCTOR_KEY);
-        if (localDoctorSession) {
-          try {
-            const parsed = JSON.parse(localDoctorSession);
-            if (parsed && parsed.role === 'doctor') {
-              if (isMounted) {
-                setProfile(parsed);
-                setRole(parsed.role || 'doctor');
-                setUser({ id: parsed.id, email: parsed.email });
-              }
-            }
-          } catch (e) {
-            localStorage.removeItem(LOCAL_STORAGE_DOCTOR_KEY);
-          }
+        if (!isSupabaseConfigured()) {
+          if (isMounted) setIsPatientLoading(false);
+          return;
         }
 
-        if (isSupabaseConfigured()) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            if (isMounted) setUser(session.user);
-            await fetchUserProfile(session.user.id, session.user.email);
+        const { data: { session: initialSession }, error } = await patientSupabase.auth.getSession();
+        if (error) throw error;
+
+        if (isMounted) {
+          setPatientSession(initialSession);
+          setPatientUser(initialSession?.user || null);
+        }
+
+        if (initialSession?.user) {
+          const userProfile = await fetchPatientProfile(initialSession.user);
+          if (isMounted && userProfile) {
+            setPatientProfile(userProfile);
           }
         }
       } catch (err) {
-        console.warn('[AuthContext] Auth initialization notice:', err.message);
+        console.warn('[AuthContext] Patient auth init error:', err.message);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) setIsPatientLoading(false);
       }
     };
 
-    initAuth();
+    initPatientAuth();
 
-    // Listen to Supabase Auth state changes if configured
     let subscription = null;
     if (isSupabaseConfigured()) {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const { data } = patientSupabase.auth.onAuthStateChange(async (event, newSession) => {
         if (!isMounted) return;
 
-        if (session?.user) {
-          setUser(session.user);
-          await fetchUserProfile(session.user.id, session.user.email);
-        } else if (event === 'SIGNED_OUT') {
-          // If explicitly signed out of Supabase
-          if (!localStorage.getItem(LOCAL_STORAGE_DOCTOR_KEY)) {
-            setUser(null);
-            setProfile(null);
-            setRole(null);
-          }
+        setPatientSession(newSession);
+        setPatientUser(newSession?.user || null);
+
+        if (newSession?.user) {
+          await fetchPatientProfile(newSession.user);
+        } else {
+          setPatientProfile(null);
         }
+        setIsPatientLoading(false);
       });
       subscription = data?.subscription;
     }
@@ -85,167 +160,365 @@ export const AuthProvider = ({ children }) => {
       isMounted = false;
       if (subscription?.unsubscribe) subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchPatientProfile]);
 
-  /**
-   * Fetch profile from Supabase 'profiles' table
-   */
-  const fetchUserProfile = async (userId, email) => {
-    if (!isSupabaseConfigured() || !userId) return;
+  // Initialize Doctor Auth Session
+  useEffect(() => {
+    let isMounted = true;
 
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+    const initDoctorAuth = async () => {
+      try {
+        if (!isSupabaseConfigured()) {
+          if (isMounted) setIsDoctorLoading(false);
+          return;
+        }
 
-      if (data) {
-        setProfile(data);
-        setRole(data.role || 'patient');
-      } else if (!error) {
-        // Default role if no row exists yet
-        const defaultRole = email?.toLowerCase().includes('doctor') ? 'doctor' : 'patient';
-        setRole(defaultRole);
-        setProfile({
-          id: userId,
-          email,
-          role: defaultRole,
-          full_name: email?.split('@')[0] || 'User'
-        });
-      }
-    } catch (err) {
-      console.warn('[AuthContext] Profile fetch notice:', err.message);
-    }
-  };
-
-  /**
-   * Log in with Email & Password
-   */
-  const login = async (email, password) => {
-    setIsLoading(true);
-    try {
-      if (isSupabaseConfigured()) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
+        const { data: { session: initialSession }, error } = await doctorSupabase.auth.getSession();
         if (error) throw error;
 
-        if (data?.user) {
-          setUser(data.user);
-          await fetchUserProfile(data.user.id, data.user.email);
-          return { user: data.user, error: null };
+        if (isMounted) {
+          setDoctorSession(initialSession);
+          setDoctorUser(initialSession?.user || null);
         }
+
+        if (initialSession?.user) {
+          const userProfile = await fetchDoctorProfile(initialSession.user);
+          if (isMounted && userProfile) {
+            setDoctorProfile(userProfile);
+          }
+        }
+      } catch (err) {
+        console.warn('[AuthContext] Doctor auth init error:', err.message);
+      } finally {
+        if (isMounted) setIsDoctorLoading(false);
+      }
+    };
+
+    initDoctorAuth();
+
+    let subscription = null;
+    if (isSupabaseConfigured()) {
+      const { data } = doctorSupabase.auth.onAuthStateChange(async (event, newSession) => {
+        if (!isMounted) return;
+
+        setDoctorSession(newSession);
+        setDoctorUser(newSession?.user || null);
+
+        if (newSession?.user) {
+          await fetchDoctorProfile(newSession.user);
+        } else {
+          setDoctorProfile(null);
+        }
+        setIsDoctorLoading(false);
+      });
+      subscription = data?.subscription;
+    }
+
+    return () => {
+      isMounted = false;
+      if (subscription?.unsubscribe) subscription.unsubscribe();
+    };
+  }, [fetchDoctorProfile]);
+
+  /**
+   * Patient Sign In
+   */
+  const signInPatient = async (email, password) => {
+    setIsPatientLoading(true);
+    try {
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase backend is not configured.');
       }
 
-      // Offline / Local / Demo Fallback Mode
-      if (email.toLowerCase().includes('doctor') || email.toLowerCase().includes('dr.')) {
-        const docProfile = {
-          ...DEFAULT_DOCTOR_PROFILE,
-          email,
-          full_name: email.startsWith('dr.') ? 'Dr. ' + email.split('@')[0].replace('dr.', '').replace('.', ' ').toUpperCase() : 'Dr. Ananya Sharma'
+      const { data, error } = await patientSupabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        setPatientUser(data.user);
+        setPatientSession(data.session);
+        const userProfile = await fetchPatientProfile(data.user);
+        return { user: data.user, profile: userProfile, error: null };
+      }
+
+      throw new Error('Unable to sign in. Please check your credentials.');
+    } catch (err) {
+      let friendlyMessage = err.message || 'Invalid credentials.';
+      if (friendlyMessage.includes('Invalid login credentials')) {
+        friendlyMessage = 'Invalid email or password. Please check and try again.';
+      } else if (friendlyMessage.includes('Email not confirmed')) {
+        friendlyMessage = 'Please confirm your email address before signing in.';
+      }
+      return { user: null, profile: null, error: friendlyMessage };
+    } finally {
+      setIsPatientLoading(false);
+    }
+  };
+
+  /**
+   * Doctor Sign In
+   */
+  const signInDoctor = async (email, password) => {
+    setIsDoctorLoading(true);
+    try {
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase backend is not configured.');
+      }
+
+      const { data, error } = await doctorSupabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        setDoctorUser(data.user);
+        setDoctorSession(data.session);
+        const userProfile = await fetchDoctorProfile(data.user);
+        return { user: data.user, profile: userProfile, error: null };
+      }
+
+      throw new Error('Unable to sign in physician. Please check your credentials.');
+    } catch (err) {
+      let friendlyMessage = err.message || 'Invalid credentials.';
+      if (friendlyMessage.includes('Invalid login credentials')) {
+        friendlyMessage = 'Invalid email or password. Please check and try again.';
+      } else if (friendlyMessage.includes('Email not confirmed')) {
+        friendlyMessage = 'Please confirm your email address before signing in.';
+      }
+      return { user: null, profile: null, error: friendlyMessage };
+    } finally {
+      setIsDoctorLoading(false);
+    }
+  };
+
+  /**
+   * Patient Public Sign Up
+   */
+  const signUpPatient = async ({ email, password, fullName, phone }) => {
+    setIsPatientLoading(true);
+    try {
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase backend is not configured.');
+      }
+
+      const { data, error } = await patientSupabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            phone: phone ? phone.trim() : null,
+            role: 'patient'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        const profilePayload = {
+          id: data.user.id,
+          email: data.user.email,
+          full_name: fullName.trim(),
+          phone: phone ? phone.trim() : null,
+          role: 'patient',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
-        setUser({ id: docProfile.id, email: docProfile.email });
-        setProfile(docProfile);
-        setRole('doctor');
-        localStorage.setItem(LOCAL_STORAGE_DOCTOR_KEY, JSON.stringify(docProfile));
-        return { user: { id: docProfile.id, email }, error: null };
-      }
 
-      throw new Error('Invalid doctor credentials. Please use an authorized doctor account.');
-    } catch (err) {
-      console.error('[AuthContext.login] Error:', err.message);
-      return { user: null, error: err.message };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Quick Demo Doctor Sign-In (For evaluation & testing)
-   */
-  const demoDoctorLogin = async () => {
-    setIsLoading(true);
-    try {
-      const docProfile = DEFAULT_DOCTOR_PROFILE;
-      setUser({ id: docProfile.id, email: docProfile.email });
-      setProfile(docProfile);
-      setRole('doctor');
-      localStorage.setItem(LOCAL_STORAGE_DOCTOR_KEY, JSON.stringify(docProfile));
-      return { user: { id: docProfile.id, email: docProfile.email }, error: null };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Logout
-   */
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      localStorage.removeItem(LOCAL_STORAGE_DOCTOR_KEY);
-      if (isSupabaseConfigured()) {
-        await supabase.auth.signOut();
-      }
-      setUser(null);
-      setProfile(null);
-      setRole(null);
-    } catch (err) {
-      console.warn('[AuthContext.logout] Notice:', err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Update Profile
-   */
-  const updateProfile = async (updates) => {
-    if (!profile) return { error: 'No active profile' };
-
-    const updated = { ...profile, ...updates, updated_at: new Date().toISOString() };
-    setProfile(updated);
-
-    if (role === 'doctor') {
-      localStorage.setItem(LOCAL_STORAGE_DOCTOR_KEY, JSON.stringify(updated));
-    }
-
-    if (isSupabaseConfigured() && profile.id) {
-      try {
-        const { data, error } = await supabase
+        const { data: createdProfile } = await patientSupabase
           .from('profiles')
-          .upsert(updated, { onConflict: 'id' })
+          .upsert(profilePayload, { onConflict: 'id' })
           .select()
           .single();
 
-        if (error) throw error;
-        if (data) setProfile(data);
-        return { data, error: null };
-      } catch (err) {
-        console.error('[AuthContext.updateProfile] Error:', err.message);
-        return { data: updated, error: err.message };
-      }
-    }
+        if (createdProfile) {
+          setPatientProfile(createdProfile);
+        }
 
-    return { data: updated, error: null };
+        const needsEmailConfirmation = !data.session;
+        return { user: data.user, error: null, needsEmailConfirmation };
+      }
+
+      return { user: null, error: 'Registration failed. Please try again.' };
+    } catch (err) {
+      return { user: null, error: err.message || 'Registration failed' };
+    } finally {
+      setIsPatientLoading(false);
+    }
   };
 
-  const isDoctor = role === 'doctor' || role === 'admin';
+  /**
+   * Send Password Reset Email
+   */
+  const resetPassword = async (email) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase backend is not configured.');
+      }
+
+      const { error } = await patientSupabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/login`
+      });
+
+      if (error) throw error;
+      return { success: true, error: null };
+    } catch (err) {
+      return { success: false, error: err.message || 'Failed to send password reset email.' };
+    }
+  };
+
+  /**
+   * Sign Out Patient
+   */
+  const signOutPatient = async () => {
+    setIsPatientLoading(true);
+    try {
+      if (isSupabaseConfigured()) {
+        await patientSupabase.auth.signOut();
+      }
+      setPatientUser(null);
+      setPatientSession(null);
+      setPatientProfile(null);
+    } catch (err) {
+      console.warn('[AuthContext.signOutPatient] Notice:', err.message);
+    } finally {
+      setIsPatientLoading(false);
+    }
+  };
+
+  /**
+   * Sign Out Doctor
+   */
+  const signOutDoctor = async () => {
+    setIsDoctorLoading(true);
+    try {
+      if (isSupabaseConfigured()) {
+        await doctorSupabase.auth.signOut();
+      }
+      setDoctorUser(null);
+      setDoctorSession(null);
+      setDoctorProfile(null);
+    } catch (err) {
+      console.warn('[AuthContext.signOutDoctor] Notice:', err.message);
+    } finally {
+      setIsDoctorLoading(false);
+    }
+  };
+
+  /**
+   * Update Patient Profile
+   */
+  const updatePatientProfile = async (updates) => {
+    if (!patientUser || !patientProfile) return { error: 'No active patient profile' };
+
+    try {
+      const safeUpdates = { ...updates };
+      delete safeUpdates.role;
+      delete safeUpdates.id;
+      safeUpdates.updated_at = new Date().toISOString();
+
+      const { data, error } = await patientSupabase
+        .from('profiles')
+        .update(safeUpdates)
+        .eq('id', patientUser.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) setPatientProfile(data);
+      return { data, error: null };
+    } catch (err) {
+      console.error('[AuthContext.updatePatientProfile] Error:', err.message);
+      return { data: null, error: err.message };
+    }
+  };
+
+  /**
+   * Update Doctor Profile
+   */
+  const updateDoctorProfile = async (updates) => {
+    if (!doctorUser || !doctorProfile) return { error: 'No active doctor profile' };
+
+    try {
+      const safeUpdates = { ...updates };
+      delete safeUpdates.role;
+      delete safeUpdates.id;
+      safeUpdates.updated_at = new Date().toISOString();
+
+      const { data, error } = await doctorSupabase
+        .from('profiles')
+        .update(safeUpdates)
+        .eq('id', doctorUser.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) setDoctorProfile(data);
+      return { data, error: null };
+    } catch (err) {
+      console.error('[AuthContext.updateDoctorProfile] Error:', err.message);
+      return { data: null, error: err.message };
+    }
+  };
+
+  const isDoctor = doctorProfile?.role === 'doctor' || doctorProfile?.role === 'admin';
+  const isPatient = patientProfile?.role === 'patient' || (!isDoctor && Boolean(patientUser));
+
+  // Determine fallback active user/profile/signIn/signOut based on window route
+  const isDoctorRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/doctor');
+
+  const activeUser = isDoctorRoute ? doctorUser : patientUser;
+  const activeProfile = isDoctorRoute ? doctorProfile : patientProfile;
+  const activeRole = isDoctorRoute ? (doctorProfile?.role || 'doctor') : (patientProfile?.role || 'patient');
+  const activeLoading = isDoctorRoute ? isDoctorLoading : isPatientLoading;
+  const activeSignIn = isDoctorRoute ? signInDoctor : signInPatient;
+  const activeSignOut = isDoctorRoute ? signOutDoctor : signOutPatient;
+  const activeUpdateProfile = isDoctorRoute ? updateDoctorProfile : updatePatientProfile;
 
   return (
     <AuthContext.Provider value={{
-      user,
-      profile,
-      role,
+      // Shared / Route-aware default exports for backward compatibility
+      user: activeUser,
+      profile: activeProfile,
+      role: activeRole,
+      session: isDoctorRoute ? doctorSession : patientSession,
+      isLoading: activeLoading,
+      signIn: activeSignIn,
+      signUp: signUpPatient,
+      signOut: activeSignOut,
+      logout: activeSignOut,
+      login: activeSignIn,
+      resetPassword,
+      updateProfile: activeUpdateProfile,
       isDoctor,
-      isLoading,
-      login,
-      demoDoctorLogin,
-      logout,
-      updateProfile
+      isPatient,
+
+      // Explicit Patient Auth Exports
+      patientSession,
+      patientUser,
+      patientProfile,
+      isPatientLoading,
+      signInPatient,
+      signUpPatient,
+      signOutPatient,
+      updatePatientProfile,
+      refreshPatientProfile: () => patientUser && fetchPatientProfile(patientUser),
+
+      // Explicit Doctor Auth Exports
+      doctorSession,
+      doctorUser,
+      doctorProfile,
+      isDoctorLoading,
+      signInDoctor,
+      signOutDoctor,
+      updateDoctorProfile,
+      refreshDoctorProfile: () => doctorUser && fetchDoctorProfile(doctorUser)
     }}>
       {children}
     </AuthContext.Provider>

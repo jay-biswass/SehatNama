@@ -50,9 +50,9 @@ async function testCandidate(model) {
 }
 
 async function run() {
-  await testCandidate('gemini-2.5-flash');
+  await testCandidate('gemini-3.6-flash');
   await testCandidate('gemini-flash-latest');
-  await testCandidate('gemini-3.8-flash');
+  await testCandidate('gemini-3.6-flash');
 }
 
 run();

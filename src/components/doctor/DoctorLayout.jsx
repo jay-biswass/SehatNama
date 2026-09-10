@@ -47,7 +47,7 @@ export const DoctorLayout = ({ children, onRealtimeEvent }) => {
   }, [onRealtimeEvent]);
 
   return (
-    <div className="min-h-screen bg-[#f4f7fc] flex flex-col lg:flex-row text-slate-800 font-sans antialiased select-none">
+    <div className="min-h-[100dvh] bg-[var(--color-bg-base)] flex flex-col lg:flex-row text-[var(--color-text-primary)] font-sans antialiased select-none">
       {/* Sidebar Navigation */}
       <DoctorSidebar
         isOpen={sidebarOpen}
@@ -55,13 +55,13 @@ export const DoctorLayout = ({ children, onRealtimeEvent }) => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-[100dvh] overflow-x-hidden">
         <DoctorHeader
           onMenuClick={() => setSidebarOpen(true)}
           alertsCount={alertsCount}
         />
 
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           {children}
         </main>
       </div>

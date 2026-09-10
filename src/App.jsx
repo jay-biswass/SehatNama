@@ -19,6 +19,13 @@ import Documents from './pages/Documents';
 import Review from './pages/Review';
 import Success from './pages/Success';
 
+// Patient Auth & Dashboard Imports
+import PatientLogin from './pages/auth/PatientLogin';
+import PatientSignup from './pages/auth/PatientSignup';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import PatientDashboard from './pages/patient/PatientDashboard';
+import PatientProtectedRoute from './components/auth/PatientProtectedRoute';
+
 // Doctor Page Imports
 import DoctorLogin from './pages/doctor/DoctorLogin';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
@@ -39,7 +46,22 @@ function App() {
       <PatientProvider>
         <BrowserRouter>
           <Routes>
-            {/* Patient Kiosk Routes (Preserved with AppLayout) */}
+            {/* Public Patient Auth Routes */}
+            <Route path="/login" element={<PatientLogin />} />
+            <Route path="/signup" element={<PatientSignup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            {/* Protected Patient Dashboard */}
+            <Route
+              path="/patient/dashboard"
+              element={
+                <PatientProtectedRoute>
+                  <PatientDashboard />
+                </PatientProtectedRoute>
+              }
+            />
+
+            {/* Patient Kiosk & Intake Flow (Preserved with AppLayout) */}
             <Route element={<PatientRoutesWrapper />}>
               <Route path="/" element={<Welcome />} />
               <Route path="/check-in" element={<CheckIn />} />

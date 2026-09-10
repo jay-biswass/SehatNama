@@ -100,6 +100,11 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       clinicalAiApiPlugin(mode)
     ],
+    server: {
+      watch: {
+        ignored: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.webp', '**/*.gif']
+      }
+    }
   };
 })
 

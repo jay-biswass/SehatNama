@@ -13,19 +13,19 @@ export const Modal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300"
+        className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity duration-300"
         onClick={onClose}
       />
       {/* Modal Box */}
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative z-10 animate-fade-in border border-slate-100 max-h-[90vh] flex flex-col select-none">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4 shrink-0">
-          <h3 className="text-base font-bold text-slate-900">{title}</h3>
+      <div className="glass-strong rounded-[var(--radius-lg)] shadow-[var(--shadow-modal)] max-w-md w-full p-6 relative z-10 animate-fade-in max-h-[90vh] flex flex-col select-none">
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)] mb-4 shrink-0">
+          <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
           <button 
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] rounded-[var(--radius-sm)] p-1.5 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto pr-1">

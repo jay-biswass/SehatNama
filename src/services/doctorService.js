@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
+import { doctorSupabase as supabase, isSupabaseConfigured } from '../lib/supabase.js';
 
 export const doctorService = {
   /**
@@ -321,7 +321,7 @@ export const doctorService = {
         data: {
           id: `note-${Date.now()}`,
           case_id: caseId,
-          doctor_name: doctorProfile.full_name || 'Dr. Ananya Sharma',
+          doctor_name: doctorProfile.full_name || 'Attending Physician',
           note: noteText,
           created_at: new Date().toISOString()
         },

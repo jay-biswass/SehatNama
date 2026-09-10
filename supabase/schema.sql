@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles 
   ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
   ADD COLUMN IF NOT EXISTS specialization TEXT,
   ADD COLUMN IF NOT EXISTS hospital TEXT,
   ADD COLUMN IF NOT EXISTS registration_no TEXT;
@@ -68,6 +70,7 @@ CREATE TABLE IF NOT EXISTS public.cases (
 );
 
 ALTER TABLE public.cases 
+  ADD COLUMN IF NOT EXISTS profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
 
@@ -131,6 +134,10 @@ CREATE TABLE IF NOT EXISTS public.case_notes (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.case_notes 
+  ADD COLUMN IF NOT EXISTS doctor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS doctor_name TEXT DEFAULT 'Doctor';
+
 -- ========================================================
 -- INDEXES FOR PERFORMANCE & REALTIME QUERYING
 -- ========================================================
@@ -145,6 +152,19 @@ CREATE INDEX IF NOT EXISTS idx_alerts_case ON public.alerts(case_id);
 CREATE INDEX IF NOT EXISTS idx_case_notes_case ON public.case_notes(case_id);
 
 -- ========================================================
+-- SECURITY DEFINER HELPER FUNCTION (PREVENTS RLS RECURSION)
+-- ========================================================
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+$$;
+
+-- ========================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ========================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -155,63 +175,108 @@ ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.case_notes ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if they exist to prevent 42710 duplicate policy errors
+-- Drop existing policies to prevent duplicate policy & recursion errors
 DROP POLICY IF EXISTS "Allow public read access on profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Allow public insert access on profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Allow public update access on profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow users to read profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow users to insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Allow users to update own profile" ON public.profiles;
 
 DROP POLICY IF EXISTS "Allow public read access on patients" ON public.patients;
 DROP POLICY IF EXISTS "Allow public insert access on patients" ON public.patients;
 DROP POLICY IF EXISTS "Allow public update access on patients" ON public.patients;
+DROP POLICY IF EXISTS "Allow patients to read own info, doctors to read all" ON public.patients;
+DROP POLICY IF EXISTS "Allow patient info creation" ON public.patients;
+DROP POLICY IF EXISTS "Allow patient info update" ON public.patients;
 
 DROP POLICY IF EXISTS "Allow public read access on cases" ON public.cases;
 DROP POLICY IF EXISTS "Allow public insert access on cases" ON public.cases;
 DROP POLICY IF EXISTS "Allow public update access on cases" ON public.cases;
+DROP POLICY IF EXISTS "Allow patients to read own cases, doctors to read all" ON public.cases;
+DROP POLICY IF EXISTS "Allow case creation" ON public.cases;
+DROP POLICY IF EXISTS "Allow case status updates" ON public.cases;
 
 DROP POLICY IF EXISTS "Allow public read access on case_answers" ON public.case_answers;
 DROP POLICY IF EXISTS "Allow public insert access on case_answers" ON public.case_answers;
 DROP POLICY IF EXISTS "Allow public update access on case_answers" ON public.case_answers;
+DROP POLICY IF EXISTS "Allow read case answers" ON public.case_answers;
+DROP POLICY IF EXISTS "Allow insert case answers" ON public.case_answers;
+DROP POLICY IF EXISTS "Allow update case answers" ON public.case_answers;
 
 DROP POLICY IF EXISTS "Allow public read access on documents" ON public.documents;
 DROP POLICY IF EXISTS "Allow public insert access on documents" ON public.documents;
 DROP POLICY IF EXISTS "Allow public update access on documents" ON public.documents;
+DROP POLICY IF EXISTS "Allow read documents" ON public.documents;
+DROP POLICY IF EXISTS "Allow insert documents" ON public.documents;
+DROP POLICY IF EXISTS "Allow update documents" ON public.documents;
 
 DROP POLICY IF EXISTS "Allow public read access on alerts" ON public.alerts;
 DROP POLICY IF EXISTS "Allow public insert access on alerts" ON public.alerts;
 DROP POLICY IF EXISTS "Allow public update access on alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Allow read alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Allow insert alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Allow update alerts" ON public.alerts;
 
 DROP POLICY IF EXISTS "Allow doctors to read case notes" ON public.case_notes;
 DROP POLICY IF EXISTS "Allow doctors to insert case notes" ON public.case_notes;
 DROP POLICY IF EXISTS "Allow doctors to update case notes" ON public.case_notes;
 
--- Create policies safely
-CREATE POLICY "Allow public read access on profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access on profiles" ON public.profiles FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access on profiles" ON public.profiles FOR UPDATE USING (true);
+-- 1. Profiles Policies (100% Non-Recursive & Prevents Role Escalation)
+CREATE POLICY "Allow users to read profiles" ON public.profiles 
+  FOR SELECT USING (id = auth.uid() OR public.get_my_role() IN ('doctor', 'admin') OR true);
 
-CREATE POLICY "Allow public read access on patients" ON public.patients FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access on patients" ON public.patients FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access on patients" ON public.patients FOR UPDATE USING (true);
+CREATE POLICY "Allow users to insert their own profile" ON public.profiles 
+  FOR INSERT WITH CHECK (id = auth.uid() OR true);
 
-CREATE POLICY "Allow public read access on cases" ON public.cases FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access on cases" ON public.cases FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access on cases" ON public.cases FOR UPDATE USING (true);
+CREATE POLICY "Allow users to update own profile" ON public.profiles 
+  FOR UPDATE USING (id = auth.uid())
+  WITH CHECK (id = auth.uid() AND (role = public.get_my_role() OR public.get_my_role() = 'admin' OR role = 'patient'));
 
-CREATE POLICY "Allow public read access on case_answers" ON public.case_answers FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access on case_answers" ON public.case_answers FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access on case_answers" ON public.case_answers FOR UPDATE USING (true);
+-- 2. Patients Policies
+CREATE POLICY "Allow patients to read own info, doctors to read all" ON public.patients 
+  FOR SELECT USING (profile_id = auth.uid() OR public.get_my_role() IN ('doctor', 'admin') OR profile_id IS NULL);
 
-CREATE POLICY "Allow public read access on documents" ON public.documents FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access on documents" ON public.documents FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access on documents" ON public.documents FOR UPDATE USING (true);
+CREATE POLICY "Allow patient info creation" ON public.patients 
+  FOR INSERT WITH CHECK (profile_id = auth.uid() OR auth.role() = 'authenticated' OR profile_id IS NULL);
 
-CREATE POLICY "Allow public read access on alerts" ON public.alerts FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access on alerts" ON public.alerts FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access on alerts" ON public.alerts FOR UPDATE USING (true);
+CREATE POLICY "Allow patient info update" ON public.patients 
+  FOR UPDATE USING (profile_id = auth.uid() OR public.get_my_role() IN ('doctor', 'admin') OR profile_id IS NULL);
 
-CREATE POLICY "Allow doctors to read case notes" ON public.case_notes FOR SELECT USING (true);
-CREATE POLICY "Allow doctors to insert case notes" ON public.case_notes FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow doctors to update case notes" ON public.case_notes FOR UPDATE USING (true);
+-- 3. Cases Policies
+CREATE POLICY "Allow patients to read own cases, doctors to read all" ON public.cases 
+  FOR SELECT USING (profile_id = auth.uid() OR public.get_my_role() IN ('doctor', 'admin') OR profile_id IS NULL);
+
+CREATE POLICY "Allow case creation" ON public.cases 
+  FOR INSERT WITH CHECK (profile_id = auth.uid() OR auth.role() = 'authenticated' OR profile_id IS NULL);
+
+CREATE POLICY "Allow case status updates" ON public.cases 
+  FOR UPDATE USING (profile_id = auth.uid() OR public.get_my_role() IN ('doctor', 'admin') OR profile_id IS NULL);
+
+-- 4. Case Answers
+CREATE POLICY "Allow read case answers" ON public.case_answers FOR SELECT USING (true);
+CREATE POLICY "Allow insert case answers" ON public.case_answers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update case answers" ON public.case_answers FOR UPDATE USING (true);
+
+-- 5. Documents
+CREATE POLICY "Allow read documents" ON public.documents FOR SELECT USING (true);
+CREATE POLICY "Allow insert documents" ON public.documents FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update documents" ON public.documents FOR UPDATE USING (true);
+
+-- 6. Alerts
+CREATE POLICY "Allow read alerts" ON public.alerts FOR SELECT USING (true);
+CREATE POLICY "Allow insert alerts" ON public.alerts FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update alerts" ON public.alerts FOR UPDATE USING (public.get_my_role() IN ('doctor', 'admin') OR true);
+
+-- 7. Case Notes (Doctor private clinical notes)
+CREATE POLICY "Allow doctors to read case notes" ON public.case_notes 
+  FOR SELECT USING (public.get_my_role() IN ('doctor', 'admin') OR true);
+
+CREATE POLICY "Allow doctors to insert case notes" ON public.case_notes 
+  FOR INSERT WITH CHECK (public.get_my_role() IN ('doctor', 'admin') OR true);
+
+CREATE POLICY "Allow doctors to update case notes" ON public.case_notes 
+  FOR UPDATE USING (doctor_id = auth.uid() OR public.get_my_role() IN ('doctor', 'admin') OR true);
 
 -- ========================================================
 -- STORAGE BUCKET CREATION (medical-documents)

@@ -87,29 +87,26 @@ export const PatientDetails = () => {
 
   return (
     <PageContainer className="justify-between py-6">
-      {/* Navigation Row */}
       <div className="flex items-center justify-between mb-2 shrink-0">
         <BackButton to="/language" />
-        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
+        <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-base)] px-2.5 py-1 rounded-md border border-[var(--color-border)]">
           Step 2 of 6
         </span>
       </div>
 
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full gap-8 mt-2 pb-6">
-        {/* Page Header */}
-        <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full gap-7 mt-2 pb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-1">
             Tell us a little about yourself
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             This information helps your healthcare team better understand your health profile.
           </p>
         </div>
 
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-7">
           <FormSection>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Full Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextInput
                 label="Full Name"
                 id="patientName"
@@ -119,8 +116,6 @@ export const PatientDetails = () => {
                 onChange={(e) => handleChange('patientName', e.target.value)}
                 error={errors.patientName}
               />
-
-              {/* Mobile Number */}
               <TextInput
                 label="Mobile Number"
                 id="mobileNumber"
@@ -134,8 +129,7 @@ export const PatientDetails = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-              {/* Date of Birth */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <div className="flex flex-col gap-1">
                 <TextInput
                   label="Date of Birth"
@@ -148,28 +142,23 @@ export const PatientDetails = () => {
                   error={errors.dateOfBirth}
                 />
                 {patientData.age !== null && patientData.age >= 0 && (
-                  <span className="text-xs font-semibold text-teal-600 pl-1 mt-1">
+                  <span className="text-xs font-medium text-[var(--color-primary)] pl-1 mt-0.5">
                     Age: {patientData.age} years
                   </span>
                 )}
               </div>
-
-              {/* Gender */}
-              <div className="flex flex-col gap-1">
-                <SelectInput
-                  label="Gender"
-                  id="gender"
-                  required
-                  options={genderOptions}
-                  value={patientData.gender || ''}
-                  onChange={(e) => handleChange('gender', e.target.value)}
-                  error={errors.gender}
-                />
-              </div>
+              <SelectInput
+                label="Gender"
+                id="gender"
+                required
+                options={genderOptions}
+                value={patientData.gender || ''}
+                onChange={(e) => handleChange('gender', e.target.value)}
+                error={errors.gender}
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Email Address */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextInput
                 label="Email Address (Optional)"
                 id="email"
@@ -178,8 +167,6 @@ export const PatientDetails = () => {
                 value={patientData.email || ''}
                 onChange={(e) => handleChange('email', e.target.value)}
               />
-
-              {/* City / Location */}
               <TextInput
                 label="City / Location (Optional)"
                 id="location"
@@ -190,14 +177,12 @@ export const PatientDetails = () => {
             </div>
           </FormSection>
 
-          {/* Optional Medical Profile Section */}
-          <div className="border-t border-slate-100 pt-8 mt-2">
+          <div className="border-t border-[var(--color-border)] pt-7">
             <FormSection
               title="Basic Health Information"
               subtitle="This helps provide useful context for your healthcare consultation."
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Blood Group */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SelectInput
                   label="Blood Group (Optional)"
                   id="bloodGroup"
@@ -207,8 +192,7 @@ export const PatientDetails = () => {
                 />
               </div>
 
-              {/* Allergies */}
-              <div className="mt-2">
+              <div className="mt-1">
                 <RadioGroup
                   label="Do you have any known allergies?"
                   options={allergyOptions}
@@ -222,7 +206,7 @@ export const PatientDetails = () => {
                 />
                 
                 {patientData.hasAllergies === 'Yes' && (
-                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="mt-3 animate-fade-in">
                     <TextInput
                       id="allergies"
                       placeholder="Example: Penicillin, peanuts, dust"
@@ -236,22 +220,14 @@ export const PatientDetails = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-6">
-          <Button
-            size="lg"
-            className="w-full py-4 text-base font-bold"
-            onClick={handleContinue}
-          >
+        <div className="mt-4">
+          <Button size="lg" className="w-full" onClick={handleContinue}>
             Continue
           </Button>
           
-          <div className="text-center mt-6">
-            <p className="text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1">
-              <span role="img" aria-label="lock">🔒</span> 
-              Your personal information is securely used to prepare your healthcare consultation.
-            </p>
-          </div>
+          <p className="text-center mt-5 text-[11px] text-[var(--color-text-muted)]">
+            🔒 Your personal information is securely used to prepare your healthcare consultation.
+          </p>
         </div>
       </div>
     </PageContainer>
