@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node tests/clinicalHistoryEngine.test.js",
+    "test": "node tests/clinicalHistoryEngine.test.js && node tests/doctorIntegration.test.js",
     "lint": "oxlint",
     "preview": "vite preview"
   },

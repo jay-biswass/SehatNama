@@ -27,16 +27,26 @@ export const Header = () => {
         </div>
       </div>
       
-      {location.pathname !== '/' && location.pathname !== '/success' && (
-        <button 
-          onClick={handleReset}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 cursor-pointer"
-          title="Reset Check-in"
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => navigate('/doctor/dashboard')}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-all cursor-pointer"
+          title="Switch to Doctor Dashboard"
         >
-          <RefreshCw size={14} />
-          <span>Reset Session</span>
+          <span>Doctor Portal</span>
         </button>
-      )}
+
+        {location.pathname !== '/' && location.pathname !== '/success' && (
+          <button 
+            onClick={handleReset}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 cursor-pointer"
+            title="Reset Check-in"
+          >
+            <RefreshCw size={14} />
+            <span>Reset</span>
+          </button>
+        )}
+      </div>
     </header>
   );
 };

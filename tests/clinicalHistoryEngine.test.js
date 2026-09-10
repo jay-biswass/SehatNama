@@ -1064,15 +1064,15 @@ await runTest('19. Gemini Document AI: 17. Differentiated HTTP error handling (4
   }
 });
 
-await runTest('20. Gemini Document AI: 18. Auto-switch from gemini-3.8-flash to compatible multimodal model', () => {
+await runTest('20. Gemini Document AI: 18. Auto-upgrade legacy gemini-2.5-flash to active multimodal model', () => {
   const origModel = process.env.GEMINI_MODEL;
   try {
-    process.env.GEMINI_MODEL = 'gemini-3.8-flash';
-    const resolved = getCompatibleModel();
-    assert.strictEqual(resolved, COMPATIBLE_MULTIMODAL_MODEL, 'gemini-3.8-flash must auto-switch to compatible gemini-2.5-flash');
-
     process.env.GEMINI_MODEL = 'gemini-2.5-flash';
-    assert.strictEqual(getCompatibleModel(), 'gemini-2.5-flash');
+    const resolved = getCompatibleModel();
+    assert.strictEqual(resolved, COMPATIBLE_MULTIMODAL_MODEL, 'gemini-2.5-flash must auto-upgrade to active gemini-3.6-flash');
+
+    process.env.GEMINI_MODEL = 'gemini-3.6-flash';
+    assert.strictEqual(getCompatibleModel(), 'gemini-3.6-flash');
   } finally {
     process.env.GEMINI_MODEL = origModel;
   }

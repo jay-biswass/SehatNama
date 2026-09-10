@@ -78,7 +78,7 @@ export async function extractClinicalInfo(patientUtterance, context = {}) {
   }
 
   const geminiApiKey = getEnv('GEMINI_API_KEY');
-  const geminiModel = getEnv('GEMINI_MODEL') || 'gemini-3.8-flash';
+  const geminiModel = getEnv('GEMINI_MODEL') || 'gemini-3.6-flash';
 
   // 1. If Gemini API Key is configured, attempt Gemini 3.8 Flash call
   if (geminiApiKey && !geminiApiKey.includes('your_gemini_api_key')) {

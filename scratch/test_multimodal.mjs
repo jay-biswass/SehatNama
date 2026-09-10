@@ -51,10 +51,10 @@ async function testMultimodal(model) {
 }
 
 async function run() {
-  console.log('Testing gemini-3.8-flash:');
+  console.log('Testing gemini-3.6-flash:');
+  await testMultimodal('gemini-3.6-flash');
+  console.log('\nTesting gemini-3.8-flash:');
   await testMultimodal('gemini-3.8-flash');
-  console.log('\nTesting gemini-2.5-flash:');
-  await testMultimodal('gemini-2.5-flash');
 }
 
 run();

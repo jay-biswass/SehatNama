@@ -1,5 +1,5 @@
 -- ========================================================
--- SEHATNAMA SUPABASE DATABASE SCHEMA
+-- SEHATNAMA SUPABASE DATABASE SCHEMA (IDEMPOTENT MIGRATION)
 -- ========================================================
 
 -- Enable UUID extension
@@ -13,9 +13,19 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   full_name TEXT,
   role TEXT NOT NULL DEFAULT 'patient' CHECK (role IN ('patient', 'doctor', 'admin')),
+  email TEXT,
+  specialization TEXT,
+  hospital TEXT,
+  registration_no TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS specialization TEXT,
+  ADD COLUMN IF NOT EXISTS hospital TEXT,
+  ADD COLUMN IF NOT EXISTS registration_no TEXT;
 
 -- --------------------------------------------------------
 -- 2. PATIENTS TABLE
@@ -50,10 +60,16 @@ CREATE TABLE IF NOT EXISTS public.cases (
   patient_description TEXT,
   priority_level TEXT DEFAULT 'normal' CHECK (priority_level IN ('normal', 'medium', 'high')),
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'in_progress', 'submitted', 'waiting_for_doctor', 'under_review', 'completed')),
+  reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
   submitted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.cases 
+  ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
 
 -- --------------------------------------------------------
 -- 4. CASE_ANSWERS TABLE
@@ -101,15 +117,32 @@ CREATE TABLE IF NOT EXISTS public.alerts (
   acknowledged_at TIMESTAMPTZ
 );
 
+-- --------------------------------------------------------
+-- 7. CASE_NOTES TABLE (DOCTOR CLINICAL NOTES)
+-- Stores private clinical notes added by attending physicians
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.case_notes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  case_id UUID REFERENCES public.cases(id) ON DELETE CASCADE,
+  doctor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  doctor_name TEXT DEFAULT 'Doctor',
+  note TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ========================================================
 -- INDEXES FOR PERFORMANCE & REALTIME QUERYING
 -- ========================================================
 CREATE INDEX IF NOT EXISTS idx_patients_mobile ON public.patients(mobile_number);
 CREATE INDEX IF NOT EXISTS idx_cases_patient ON public.cases(patient_id);
 CREATE INDEX IF NOT EXISTS idx_cases_status ON public.cases(status);
+CREATE INDEX IF NOT EXISTS idx_cases_priority ON public.cases(priority_level);
+CREATE INDEX IF NOT EXISTS idx_cases_submitted ON public.cases(submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_case_answers_case ON public.case_answers(case_id);
 CREATE INDEX IF NOT EXISTS idx_documents_case ON public.documents(case_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_case ON public.alerts(case_id);
+CREATE INDEX IF NOT EXISTS idx_case_notes_case ON public.case_notes(case_id);
 
 -- ========================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -120,8 +153,38 @@ ALTER TABLE public.cases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.case_answers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.case_notes ENABLE ROW LEVEL SECURITY;
 
--- Allow anon & authenticated insert/select/update for public prototype mode
+-- Drop existing policies if they exist to prevent 42710 duplicate policy errors
+DROP POLICY IF EXISTS "Allow public read access on profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public insert access on profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public update access on profiles" ON public.profiles;
+
+DROP POLICY IF EXISTS "Allow public read access on patients" ON public.patients;
+DROP POLICY IF EXISTS "Allow public insert access on patients" ON public.patients;
+DROP POLICY IF EXISTS "Allow public update access on patients" ON public.patients;
+
+DROP POLICY IF EXISTS "Allow public read access on cases" ON public.cases;
+DROP POLICY IF EXISTS "Allow public insert access on cases" ON public.cases;
+DROP POLICY IF EXISTS "Allow public update access on cases" ON public.cases;
+
+DROP POLICY IF EXISTS "Allow public read access on case_answers" ON public.case_answers;
+DROP POLICY IF EXISTS "Allow public insert access on case_answers" ON public.case_answers;
+DROP POLICY IF EXISTS "Allow public update access on case_answers" ON public.case_answers;
+
+DROP POLICY IF EXISTS "Allow public read access on documents" ON public.documents;
+DROP POLICY IF EXISTS "Allow public insert access on documents" ON public.documents;
+DROP POLICY IF EXISTS "Allow public update access on documents" ON public.documents;
+
+DROP POLICY IF EXISTS "Allow public read access on alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Allow public insert access on alerts" ON public.alerts;
+DROP POLICY IF EXISTS "Allow public update access on alerts" ON public.alerts;
+
+DROP POLICY IF EXISTS "Allow doctors to read case notes" ON public.case_notes;
+DROP POLICY IF EXISTS "Allow doctors to insert case notes" ON public.case_notes;
+DROP POLICY IF EXISTS "Allow doctors to update case notes" ON public.case_notes;
+
+-- Create policies safely
 CREATE POLICY "Allow public read access on profiles" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on profiles" ON public.profiles FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access on profiles" ON public.profiles FOR UPDATE USING (true);
@@ -146,6 +209,10 @@ CREATE POLICY "Allow public read access on alerts" ON public.alerts FOR SELECT U
 CREATE POLICY "Allow public insert access on alerts" ON public.alerts FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access on alerts" ON public.alerts FOR UPDATE USING (true);
 
+CREATE POLICY "Allow doctors to read case notes" ON public.case_notes FOR SELECT USING (true);
+CREATE POLICY "Allow doctors to insert case notes" ON public.case_notes FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow doctors to update case notes" ON public.case_notes FOR UPDATE USING (true);
+
 -- ========================================================
 -- STORAGE BUCKET CREATION (medical-documents)
 -- ========================================================
@@ -153,5 +220,6 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('medical-documents', 'medical-documents', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Public Access Storage Policy" ON storage.objects;
 CREATE POLICY "Public Access Storage Policy" ON storage.objects 
 FOR ALL USING (bucket_id = 'medical-documents');

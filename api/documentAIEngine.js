@@ -60,12 +60,12 @@ export const getEnv = (key) => {
   return (process.env[key] ? process.env[key].trim() : '') || '';
 };
 
-export const COMPATIBLE_MULTIMODAL_MODEL = 'gemini-2.5-flash';
+export const COMPATIBLE_MULTIMODAL_MODEL = 'gemini-3.6-flash';
 
 export function getCompatibleModel() {
   const configured = getEnv('GEMINI_MODEL') || COMPATIBLE_MULTIMODAL_MODEL;
-  // If gemini-3.8-flash is configured, automatically switch to compatible multimodal model
-  if (configured.toLowerCase() === 'gemini-3.8-flash') {
+  // If deprecated gemini-2.5-flash is configured, automatically upgrade to active model gemini-3.6-flash
+  if (configured.toLowerCase() === 'gemini-2.5-flash') {
     return COMPATIBLE_MULTIMODAL_MODEL;
   }
   return configured;

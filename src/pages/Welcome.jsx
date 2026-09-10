@@ -62,16 +62,25 @@ export const Welcome = () => {
         </div>
       </div>
 
-      {/* Action Button */}
-      <div className="w-full max-w-xs animate-fade-in delay-300">
+      {/* Action Buttons */}
+      <div className="w-full max-w-xs flex flex-col gap-3 animate-fade-in delay-300">
         <Button
           size="lg"
-          className="w-full py-4 text-base"
+          className="w-full py-4 text-base font-bold"
           onClick={() => navigate('/check-in')}
           icon={<ArrowRight size={18} className="order-last ml-1" />}
         >
           Start Health Check-in
         </Button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/doctor/dashboard')}
+          className="text-xs font-semibold text-slate-500 hover:text-teal-700 py-2 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          <span>Are you a doctor? Open Doctor Portal</span>
+          <ArrowRight size={13} />
+        </button>
       </div>
     </PageContainer>
   );
