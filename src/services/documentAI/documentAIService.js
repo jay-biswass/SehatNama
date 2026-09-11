@@ -8,6 +8,8 @@
  * ZERO fallback OCR. Real Gemini Multimodal Extraction only.
  */
 
+import { supabase, isSupabaseConfigured } from '../../lib/supabase.js';
+
 const SUPPORTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf']);
 const SUPPORTED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -127,56 +129,72 @@ export async function extractDocument({ file, base64Data, mimeType, fileName, do
       };
     }
 
-    const requestPayload = JSON.stringify({
-      base64Data: payloadBase64,
-      mimeType: effectiveMime,
-      fileName: effectiveName
-    });
+    let data = null;
+    let requestFailed = false;
 
-    let response = null;
-    try {
-      response = await fetch('/api/extract-medical-document', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: requestPayload
-      });
-    } catch (netErr) {
-      console.warn('[documentAIService] Relative API endpoint unavailable:', netErr.message);
-    }
-
-    // If relative endpoint returned 404 or failed, attempt Supabase Edge Function fallback
-    if (!response || response.status === 404) {
-      const sbUrl = import.meta.env?.VITE_SUPABASE_URL || '';
-      const sbKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
-      if (sbUrl && sbKey && sbUrl !== 'your_supabase_project_url' && !sbUrl.includes('placeholder')) {
-        try {
-          response = await fetch(`${sbUrl}/functions/v1/extract-medical-document`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sbKey}`,
-              'apikey': sbKey
-            },
-            body: requestPayload
-          });
-        } catch (edgeErr) {
-          console.error('[documentAIService] Supabase Edge Function fetch failed:', edgeErr.message);
+    // 1. Primary Route: Supabase Edge Function (Server-side Gemini 2.0 Flash)
+    if (isSupabaseConfigured()) {
+      try {
+        const { error: sessionError } = await supabase.auth.getSession();
+        if (sessionError && sessionError.message?.includes('refresh_token')) {
+          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
         }
+
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('extract-medical-document', {
+          body: {
+            base64Data: payloadBase64,
+            mimeType: effectiveMime,
+            fileName: effectiveName
+          }
+        });
+
+        if (!edgeError && edgeData) {
+          data = edgeData;
+        } else if (edgeError) {
+          console.warn('[documentAIService] Supabase Edge Function returned error:', edgeError.message);
+          requestFailed = true;
+        }
+      } catch (invokeErr) {
+        console.warn('[documentAIService] Supabase Edge Function invocation failed:', invokeErr.message);
+        requestFailed = true;
       }
     }
 
-    if (!response || !response.ok) {
-      const errorJson = response ? await response.json().catch(() => null) : null;
-      const reason = errorJson?.reason || 'Unable to extract information from this document right now. The original document has been saved.';
-      return {
-        success: false,
-        reason
-      };
+    // 2. Fallback Route: Local dev / relative API endpoint (/api/extract-medical-document)
+    if (!data && (!isSupabaseConfigured() || requestFailed)) {
+      try {
+        const response = await fetch('/api/extract-medical-document', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            base64Data: payloadBase64,
+            mimeType: effectiveMime,
+            fileName: effectiveName
+          })
+        });
+
+        if (response && response.ok) {
+          data = await response.json();
+        } else if (response) {
+          const errorJson = await response.json().catch(() => null);
+          return {
+            success: false,
+            reason: errorJson?.reason || 'Unable to extract information from this document right now. The original document has been saved.'
+          };
+        }
+      } catch (fetchErr) {
+        console.warn('[documentAIService] Local API endpoint fallback error:', fetchErr.message);
+      }
     }
 
-    const data = await response.json();
+    if (!data) {
+      return {
+        success: false,
+        reason: 'Unable to extract information from this document right now. The original document has been saved.'
+      };
+    }
 
     if (!data.success) {
       return {

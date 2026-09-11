@@ -2,11 +2,18 @@
 // Deploys to Supabase Edge Runtime (Deno)
 // Medical Document Multimodal Extraction using Google Gemini 2.0 Flash
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
+const fallbackCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
+};
+
+const effectiveCorsHeaders = {
+  ...fallbackCorsHeaders,
+  ...(corsHeaders || {})
 };
 
 const DOCUMENT_EXTRACTION_PROMPT = `You are the medical document extraction engine for SehatNama.
@@ -44,16 +51,43 @@ Return ONLY valid JSON:
   "extractionConfidence": null
 }`;
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // 1. Handle preflight OPTIONS request immediately before any auth/processing
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", {
+      status: 200,
+      headers: effectiveCorsHeaders
+    });
   }
 
   try {
+    // 2. Validate Authorization
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, reason: "Authentication required. Please sign in." }),
+        { status: 401, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, reason: "Invalid or expired session. Please sign in again." }),
+        { status: 401, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-    let GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.0-flash";
-    if (GEMINI_MODEL.includes("3.6") || GEMINI_MODEL.includes("latest")) {
-      GEMINI_MODEL = "gemini-2.0-flash";
+    let GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
+    if (GEMINI_MODEL.includes("3.6") || GEMINI_MODEL.includes("latest") || GEMINI_MODEL.includes("2.0")) {
+      GEMINI_MODEL = "gemini-3.8-flash";
     }
 
     if (!GEMINI_API_KEY) {
@@ -62,7 +96,7 @@ serve(async (req) => {
           success: false,
           reason: "Document AI engine is not configured on the server (GEMINI_API_KEY missing)."
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -71,7 +105,7 @@ serve(async (req) => {
     if (!base64Data || !mimeType) {
       return new Response(
         JSON.stringify({ success: false, reason: "No file data received for analysis." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -111,7 +145,7 @@ serve(async (req) => {
           success: false,
           reason: "Unable to extract information from this document right now. The original document has been saved."
         }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: response.status, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -125,7 +159,7 @@ serve(async (req) => {
         extracted,
         meta: { engine: GEMINI_MODEL, fileName: fileName || "" }
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Edge Function error:", err);
@@ -134,7 +168,7 @@ serve(async (req) => {
         success: false,
         reason: "Unable to extract information from this document right now. The original document has been saved."
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...effectiveCorsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

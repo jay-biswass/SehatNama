@@ -131,6 +131,22 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.warn('[AuthContext] Patient auth init error:', err.message);
+        if (
+          err.message?.includes('refresh_token') ||
+          err.message?.includes('Refresh Token') ||
+          err.message?.includes('Invalid Refresh Token')
+        ) {
+          try {
+            await patientSupabase.auth.signOut({ scope: 'local' });
+          } catch {
+            try { localStorage.removeItem('sehatnama-patient-auth-token'); } catch {}
+          }
+          if (isMounted) {
+            setPatientSession(null);
+            setPatientUser(null);
+            setPatientProfile(null);
+          }
+        }
       } finally {
         if (isMounted) setIsPatientLoading(false);
       }
@@ -142,6 +158,14 @@ export const AuthProvider = ({ children }) => {
     if (isSupabaseConfigured()) {
       const { data } = patientSupabase.auth.onAuthStateChange(async (event, newSession) => {
         if (!isMounted) return;
+
+        if (event === 'SIGNED_OUT' || !newSession) {
+          setPatientSession(null);
+          setPatientUser(null);
+          setPatientProfile(null);
+          setIsPatientLoading(false);
+          return;
+        }
 
         setPatientSession(newSession);
         setPatientUser(newSession?.user || null);
@@ -189,6 +213,22 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.warn('[AuthContext] Doctor auth init error:', err.message);
+        if (
+          err.message?.includes('refresh_token') ||
+          err.message?.includes('Refresh Token') ||
+          err.message?.includes('Invalid Refresh Token')
+        ) {
+          try {
+            await doctorSupabase.auth.signOut({ scope: 'local' });
+          } catch {
+            try { localStorage.removeItem('sehatnama-doctor-auth-token'); } catch {}
+          }
+          if (isMounted) {
+            setDoctorSession(null);
+            setDoctorUser(null);
+            setDoctorProfile(null);
+          }
+        }
       } finally {
         if (isMounted) setIsDoctorLoading(false);
       }

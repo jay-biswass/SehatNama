@@ -10,6 +10,7 @@
 
 import { localExtractClinicalInfo } from './localClinicalExtractor.js';
 import { validateClinicalHistory } from '../data/clinicalHistorySchema.js';
+import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 
 export const clinicalAIService = {
   /**
@@ -28,19 +29,47 @@ export const clinicalAIService = {
       };
     }
 
+    const payloadContext = {
+      currentField: context.currentField,
+      currentQuestionId: context.currentQuestionId,
+      language: context.language || 'en',
+      currentHistory: sanitizeHistoryForContext(context.currentHistory)
+    };
+
+    // 1. Primary Route: Supabase Edge Function
+    if (isSupabaseConfigured()) {
+      try {
+        const { error: sessionError } = await supabase.auth.getSession();
+        if (sessionError && sessionError.message?.includes('refresh_token')) {
+          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+        }
+
+        const { data, error } = await supabase.functions.invoke('clinical-extract', {
+          body: {
+            text,
+            context: payloadContext
+          }
+        });
+
+        if (!error && data && data.extracted) {
+          const validation = validateClinicalHistory(data.extracted);
+          if (validation.valid) {
+            return data;
+          }
+        }
+      } catch (edgeErr) {
+        console.warn('[clinicalAIService] Supabase Edge Function failed:', edgeErr.message);
+      }
+    }
+
+    // 2. Fallback Route: Local API server route (/api/extract-clinical-info)
     try {
-      // 1. Attempt call to server API endpoint (which holds Gemini 3.8 Flash)
       const response = await fetch('/api/extract-clinical-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          context: {
-            currentField: context.currentField,
-            currentQuestionId: context.currentQuestionId,
-            language: context.language || 'en',
-            currentHistory: sanitizeHistoryForContext(context.currentHistory)
-          }
+          context: payloadContext
         })
       });
 

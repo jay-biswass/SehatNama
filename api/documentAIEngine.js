@@ -60,7 +60,7 @@ export const getEnv = (key) => {
   return (process.env[key] ? process.env[key].trim() : '') || '';
 };
 
-export const COMPATIBLE_MULTIMODAL_MODEL = 'gemini-2.0-flash';
+export const COMPATIBLE_MULTIMODAL_MODEL = 'gemini-3.8-flash';
 
 export function getCompatibleModel() {
   const configured = getEnv('GEMINI_MODEL') || COMPATIBLE_MULTIMODAL_MODEL;

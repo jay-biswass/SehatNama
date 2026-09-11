@@ -1,0 +1,7 @@
+project_id = "iioaitkhielnzmkplodk"
+
+[functions.clinical-extract]
+verify_jwt = true
+
+[functions.extract-medical-document]
+verify_jwt = true
