@@ -127,20 +127,48 @@ export async function extractDocument({ file, base64Data, mimeType, fileName, do
       };
     }
 
-    const response = await fetch('/api/extract-medical-document', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        base64Data: payloadBase64,
-        mimeType: effectiveMime,
-        fileName: effectiveName
-      })
+    const requestPayload = JSON.stringify({
+      base64Data: payloadBase64,
+      mimeType: effectiveMime,
+      fileName: effectiveName
     });
 
-    if (!response.ok) {
-      const errorJson = await response.json().catch(() => null);
+    let response = null;
+    try {
+      response = await fetch('/api/extract-medical-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: requestPayload
+      });
+    } catch (netErr) {
+      console.warn('[documentAIService] Relative API endpoint unavailable:', netErr.message);
+    }
+
+    // If relative endpoint returned 404 or failed, attempt Supabase Edge Function fallback
+    if (!response || response.status === 404) {
+      const sbUrl = import.meta.env?.VITE_SUPABASE_URL || '';
+      const sbKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
+      if (sbUrl && sbKey && sbUrl !== 'your_supabase_project_url' && !sbUrl.includes('placeholder')) {
+        try {
+          response = await fetch(`${sbUrl}/functions/v1/extract-medical-document`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sbKey}`,
+              'apikey': sbKey
+            },
+            body: requestPayload
+          });
+        } catch (edgeErr) {
+          console.error('[documentAIService] Supabase Edge Function fetch failed:', edgeErr.message);
+        }
+      }
+    }
+
+    if (!response || !response.ok) {
+      const errorJson = response ? await response.json().catch(() => null) : null;
       const reason = errorJson?.reason || 'Unable to extract information from this document right now. The original document has been saved.';
       return {
         success: false,

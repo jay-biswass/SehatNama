@@ -1071,8 +1071,8 @@ await runTest('20. Gemini Document AI: 18. Auto-upgrade legacy gemini-3.6-flash 
     const resolved = getCompatibleModel();
     assert.strictEqual(resolved, COMPATIBLE_MULTIMODAL_MODEL, 'gemini-3.6-flash must auto-upgrade to active gemini-3.6-flash');
 
-    process.env.GEMINI_MODEL = 'gemini-3.6-flash';
-    assert.strictEqual(getCompatibleModel(), 'gemini-3.6-flash');
+    process.env.GEMINI_MODEL = 'gemini-2.0-flash';
+    assert.strictEqual(getCompatibleModel(), 'gemini-2.0-flash');
   } finally {
     process.env.GEMINI_MODEL = origModel;
   }
