@@ -216,7 +216,7 @@ By combining accessible design with AI-assisted workflows, SehatNama aims to mak
 
 If you find this project interesting, consider giving the repository a star ⭐. Feedback and suggestions are always welcome.
 
----
+-----------------------------------------------------------------------------------------
 
 <p align="center">
   <strong>Better Communication. Better Understanding. Better Healthcare. 🩺</strong>
